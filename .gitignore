@@ -2,4 +2,4 @@
 */migrations
 
 #ignore folder .vscode
-/.vscode
+*/__pycache__
