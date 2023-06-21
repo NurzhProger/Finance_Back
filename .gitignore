@@ -1,3 +1,4 @@
 #ignore all folder whith name "migrations"
 *\migrations
 *\__pycache__
+\.vscode
