@@ -8,6 +8,7 @@ class utv_inc(models.Model):
     _organization = models.ForeignKey(organization, blank=True, on_delete=models.CASCADE, verbose_name='Организация документа')
     _budjet = models.ForeignKey(budjet, blank=True, on_delete=models.CASCADE, verbose_name='Бюджет документа')
     deleted = models.BooleanField(default=False, null=True)
+   
 
 # ТЧ утвержденного плана по поступлениям
 class utv_inc_tbl1(models.Model):
