@@ -682,7 +682,7 @@ def fkrlist(request):
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
 def specexplist(request):
-    queryset = specexp.objects.all()
+    queryset = spec_exp.objects.all()
     paginator = CustomPagination()
     paginated_queryset = paginator.paginate_queryset(queryset, request)
     serial = shareSerializer(paginated_queryset, many = True)

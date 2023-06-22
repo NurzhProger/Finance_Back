@@ -113,7 +113,7 @@ class fkr(models.Model):
     _podprogram = models.ForeignKey(podprogram, blank=True, null=True, on_delete=models.CASCADE, verbose_name='Подпрограмма расхода')
 
 
-class specexp(models.Model):
+class spec_exp(models.Model):
     code = models.TextField(null=True)
     name_kaz = models.TextField(null=True)
     name_rus = models.TextField(null=True)
