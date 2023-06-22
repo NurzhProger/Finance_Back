@@ -486,22 +486,22 @@ def ekrreadxls(path='ekrnewkaz.xlsx'):
 
 
                 # 2. Находим функциональную Подгруппу
-                if not row[1] == None:
-                    code = str(row[1])
-                    existfg = False
-                    for itemfpg in obj_fpg:
-                        if itemfpg[1] == code:
-                            existfg = True
-                            fpg_id = itemfpg[0]
-                            fpg_code = itemfpg[1]
-                    if not existfg:
-                        funcpodgroupd = funcpodgroup()
-                        funcpodgroupd.code = code
-                        funcpodgroupd.name_rus = row[5]
-                        funcpodgroupd._funcgroup_id = fg_id
-                        funcpodgroupd.save()
-                        fpg_id = funcpodgroupd.id
-                        fpg_code = funcpodgroupd.code
+                # if not row[1] == None:
+                #     code = str(row[1])
+                #     existfg = False
+                #     for itemfpg in obj_fpg:
+                #         if itemfpg[1] == code:
+                #             existfg = True
+                #             fpg_id = itemfpg[0]
+                #             fpg_code = itemfpg[1]
+                #     if not existfg:
+                #         funcpodgroupd = funcpodgroup()
+                #         funcpodgroupd.code = code
+                #         funcpodgroupd.name_rus = row[5]
+                #         funcpodgroupd._funcgroup_id = fg_id
+                #         funcpodgroupd.save()
+                #         fpg_id = funcpodgroupd.id
+                #         fpg_code = funcpodgroupd.code
 
                 
                 # Находим АБП
