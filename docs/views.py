@@ -80,6 +80,7 @@ def utvincsave(request):
         return HttpResponse('{"status": "Ошибка в шапке документа"}', content_type="application/json", status = 400)
 
     try:
+        mass_id_tbl = []
         if doc_req['id'] == None:
             for itemtbl1 in tbl1_req:
                 newitemtbl1 = utv_inc_tbl1()
@@ -101,9 +102,10 @@ def utvincsave(request):
                 newitemtbl1.sm11 = itemtbl1['sm11']
                 newitemtbl1.sm12 = itemtbl1['sm12']
                 newitemtbl1.save()
+                mass_id_tbl.append(newitemtbl1.id)
         else:
             for itemtbl1 in tbl1_req:
-                if itemtbl1['id']==0:
+                if itemtbl1['id'] == 0:
                     newitemtbl1 = utv_inc_tbl1()
                 else:
                     newitemtbl1 = utv_inc_tbl1.objects.get(id = itemtbl1['id'])
@@ -126,6 +128,14 @@ def utvincsave(request):
                 newitemtbl1.sm11 = itemtbl1['sm11']
                 newitemtbl1.sm12 = itemtbl1['sm12']
                 newitemtbl1.save()
+                mass_id_tbl.append(newitemtbl1.id)
+
+        #Удаляем удаленные с фронта элементы табл части документа
+        newitemtbl1 = utv_inc_tbl1.objects.filter(_utv_inc_id = itemdoc.id)
+        for itemtblbs in newitemtbl1:
+            if not itemtblbs.id in mass_id_tbl:
+                itemtblbs.delete()
+
     except:
         return HttpResponse('{"status": "Ошибка в табличной части документа"}', content_type="application/json", status = 400)
 
