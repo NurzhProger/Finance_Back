@@ -9,11 +9,9 @@ from .serializer import *
 from .shareModule import *
 
 
-
 class CustomPagination(pagination.LimitOffsetPagination):
     default_limit = 25  # Количество объектов на странице по умолчанию
     max_limit = 50     # Максимальное количество объектов на странице
-
 
 
 @api_view(['GET'])
@@ -22,17 +20,17 @@ def organizationlist(request):
     queryset = organization.objects.all()
     paginator = CustomPagination()
     paginated_queryset = paginator.paginate_queryset(queryset, request)
-    serial = organizationSerializer(paginated_queryset, many = True)
+    serial = organizationSerializer(paginated_queryset, many=True)
     return paginator.get_paginated_response(serial.data)
 
 
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
 def organizationitem(request, id):
-    queryset = organization.objects.get(id = id)
+    queryset = organization.objects.get(id=id)
     # paginator = CustomPagination()
     # paginated_queryset = paginator.paginate_queryset(queryset, request)
-    serial = organizationSerializer(queryset, many = False)
+    serial = organizationSerializer(queryset, many=False)
     return response.Response(serial.data)
 
 
@@ -62,7 +60,7 @@ def organizationsave(request):
     queryset = organization.objects.all()
     paginator = CustomPagination()
     paginated_queryset = paginator.paginate_queryset(queryset, request)
-    serial = organizationSerializer(paginated_queryset, many = True)
+    serial = organizationSerializer(paginated_queryset, many=True)
     return paginator.get_paginated_response(serial.data)
 
 
@@ -70,16 +68,16 @@ def organizationsave(request):
 @permission_classes([IsAuthenticated])
 def organizationdelete(request, id):
     try:
-        orgitem = organization.objects.get(id = id)
-        orgitem.deleted =  not orgitem.deleted
-        orgitem.save() 
+        orgitem = organization.objects.get(id=id)
+        orgitem.deleted = not orgitem.deleted
+        orgitem.save()
     except:
-        return HttpResponse('{"status": "Ошибка удаления организации"}', content_type="application/json", status = 400)
+        return HttpResponse('{"status": "Ошибка удаления организации"}', content_type="application/json", status=400)
 
     queryset = organization.objects.all()
     paginator = CustomPagination()
     paginated_queryset = paginator.paginate_queryset(queryset, request)
-    serial = organizationSerializer(paginated_queryset, many = True)
+    serial = organizationSerializer(paginated_queryset, many=True)
     return paginator.get_paginated_response(serial.data)
 
 
@@ -89,7 +87,7 @@ def budjetlist(request):
     queryset = budjet.objects.all()
     paginator = CustomPagination()
     paginated_queryset = paginator.paginate_queryset(queryset, request)
-    serial = shareSerializer(paginated_queryset, many = True)
+    serial = shareSerializer(paginated_queryset, many=True)
     return paginator.get_paginated_response(serial.data)
 
 
@@ -97,8 +95,7 @@ def budjetlist(request):
 @permission_classes([IsAuthenticated])
 def fkrupdate(request):
     workbook = fkrreadxls()
-    return HttpResponse('{"status": "Загружены ФКР"}', content_type="application/json", status = 200) 
-
+    return HttpResponse('{"status": "Загружены ФКР"}', content_type="application/json", status=200)
 
 
 # ****************************************************************
@@ -110,7 +107,7 @@ def categorylist(request):
     queryset = category_income.objects.all()
     paginator = CustomPagination()
     paginated_queryset = paginator.paginate_queryset(queryset, request)
-    serial = shareSerializer(paginated_queryset, many = True)
+    serial = shareSerializer(paginated_queryset, many=True)
     return paginator.get_paginated_response(serial.data)
 
 
@@ -125,11 +122,11 @@ def categoryadd(request):
     name_rus = data['name_rus']
     if not code == '':
         try:
-            obj = category_income.objects.get(code = code)
+            obj = category_income.objects.get(code=code)
             exist = True
         except:
             exist = False
-        
+
         if not exist:
             newcat = category_income()
             newcat.code = code
@@ -137,14 +134,14 @@ def categoryadd(request):
             newcat.name_rus = name_rus
             newcat.save()
         else:
-            return HttpResponse('{"status": "Категория с таким кодом уже существует"}', content_type="application/json", status = 400) 
+            return HttpResponse('{"status": "Категория с таким кодом уже существует"}', content_type="application/json", status=400)
     else:
-        return HttpResponse('{"status": "Поле код обязателен для заполнения"}', content_type="application/json", status = 400) 
+        return HttpResponse('{"status": "Поле код обязателен для заполнения"}', content_type="application/json", status=400)
 
     queryset = category_income.objects.all()
     paginator = CustomPagination()
     paginated_queryset = paginator.paginate_queryset(queryset, request)
-    serial = shareSerializer(paginated_queryset, many = True)
+    serial = shareSerializer(paginated_queryset, many=True)
     return paginator.get_paginated_response(serial.data)
 
 
@@ -158,7 +155,7 @@ def categoryedit(request):
     name_kaz = data['name_kaz']
     name_rus = data['name_rus']
 
-    newcat = category_income.objects.get(id = id)
+    newcat = category_income.objects.get(id=id)
     newcat.name_kaz = name_kaz
     newcat.name_rus = name_rus
     newcat.save()
@@ -166,7 +163,7 @@ def categoryedit(request):
     queryset = category_income.objects.all()
     paginator = CustomPagination()
     paginated_queryset = paginator.paginate_queryset(queryset, request)
-    serial = shareSerializer(paginated_queryset, many = True)
+    serial = shareSerializer(paginated_queryset, many=True)
     return paginator.get_paginated_response(serial.data)
 
 
@@ -174,15 +171,15 @@ def categoryedit(request):
 @permission_classes([IsAuthenticated])
 def categorydelete(request, id):
     try:
-        newcat = category_income.objects.get(id = id)
-        newcat.delete() 
+        newcat = category_income.objects.get(id=id)
+        newcat.delete()
     except:
-        return HttpResponse('{"status": "Ошибка удаления категории"}', content_type="application/json", status = 400)
+        return HttpResponse('{"status": "Ошибка удаления категории"}', content_type="application/json", status=400)
 
     queryset = category_income.objects.all()
     paginator = CustomPagination()
     paginated_queryset = paginator.paginate_queryset(queryset, request)
-    serial = shareSerializer(paginated_queryset, many = True)
+    serial = shareSerializer(paginated_queryset, many=True)
     return paginator.get_paginated_response(serial.data)
 
 
@@ -192,7 +189,7 @@ def classlist(request):
     queryset = class_income.objects.all()
     paginator = CustomPagination()
     paginated_queryset = paginator.paginate_queryset(queryset, request)
-    serial = shareSerializer(paginated_queryset, many = True)
+    serial = shareSerializer(paginated_queryset, many=True)
     return paginator.get_paginated_response(serial.data)
 
 
@@ -207,11 +204,11 @@ def classadd(request):
     name_rus = data['name_rus']
     if not code == '':
         try:
-            obj = class_income.objects.get(code = code)
+            obj = class_income.objects.get(code=code)
             exist = True
         except:
             exist = False
-        
+
         if not exist:
             newcat = class_income()
             newcat.code = code
@@ -219,14 +216,14 @@ def classadd(request):
             newcat.name_rus = name_rus
             newcat.save()
         else:
-            return HttpResponse('{"status": "Класс с таким кодом уже существует"}', content_type="application/json", status = 400) 
+            return HttpResponse('{"status": "Класс с таким кодом уже существует"}', content_type="application/json", status=400)
     else:
-        return HttpResponse('{"status": "Поле код обязателен для заполнения"}', content_type="application/json", status = 400) 
+        return HttpResponse('{"status": "Поле код обязателен для заполнения"}', content_type="application/json", status=400)
 
     queryset = class_income.objects.all()
     paginator = CustomPagination()
     paginated_queryset = paginator.paginate_queryset(queryset, request)
-    serial = shareSerializer(paginated_queryset, many = True)
+    serial = shareSerializer(paginated_queryset, many=True)
     return paginator.get_paginated_response(serial.data)
 
 
@@ -241,7 +238,7 @@ def classedit(request):
     name_kaz = data['name_kaz']
     name_rus = data['name_rus']
 
-    newcat = class_income.objects.get(id = id)
+    newcat = class_income.objects.get(id=id)
     # newcat.code = code
     newcat.name_kaz = name_kaz
     newcat.name_rus = name_rus
@@ -253,7 +250,7 @@ def classedit(request):
     #         exist = True
     #     except:
     #         exist = False
-        
+
     #     if not exist:
     #         newcat = class_income.objects.get(id = id)
     #         newcat.code = code
@@ -261,14 +258,14 @@ def classedit(request):
     #         newcat.name_rus = name_rus
     #         newcat.save()
     #     else:
-    #         return HttpResponse('{"status": "Класс с таким кодом уже существует"}', content_type="application/json", status = 400) 
+    #         return HttpResponse('{"status": "Класс с таким кодом уже существует"}', content_type="application/json", status = 400)
     # else:
-    #     return HttpResponse('{"status": "Поле код обязателен для заполнения"}', content_type="application/json", status = 400) 
+    #     return HttpResponse('{"status": "Поле код обязателен для заполнения"}', content_type="application/json", status = 400)
 
     queryset = class_income.objects.all()
     paginator = CustomPagination()
     paginated_queryset = paginator.paginate_queryset(queryset, request)
-    serial = shareSerializer(paginated_queryset, many = True)
+    serial = shareSerializer(paginated_queryset, many=True)
     return paginator.get_paginated_response(serial.data)
 
 
@@ -276,15 +273,15 @@ def classedit(request):
 @permission_classes([IsAuthenticated])
 def classdelete(request, id):
     try:
-        newcat = class_income.objects.get(id = id)
-        newcat.delete() 
+        newcat = class_income.objects.get(id=id)
+        newcat.delete()
     except:
-        return HttpResponse('{"status": "Ошибка удаления категории"}', content_type="application/json", status = 400)
+        return HttpResponse('{"status": "Ошибка удаления категории"}', content_type="application/json", status=400)
 
     queryset = class_income.objects.all()
     paginator = CustomPagination()
     paginated_queryset = paginator.paginate_queryset(queryset, request)
-    serial = shareSerializer(paginated_queryset, many = True)
+    serial = shareSerializer(paginated_queryset, many=True)
     return paginator.get_paginated_response(serial.data)
 
 
@@ -294,7 +291,7 @@ def podclasslist(request):
     queryset = podclass_income.objects.all()
     paginator = CustomPagination()
     paginated_queryset = paginator.paginate_queryset(queryset, request)
-    serial = shareSerializer(paginated_queryset, many = True)
+    serial = shareSerializer(paginated_queryset, many=True)
     return paginator.get_paginated_response(serial.data)
 
 
@@ -309,11 +306,11 @@ def podclassadd(request):
     name_rus = data['name_rus']
     if not code == '':
         try:
-            obj = podclass_income.objects.get(code = code)
+            obj = podclass_income.objects.get(code=code)
             exist = True
         except:
             exist = False
-        
+
         if not exist:
             newcat = podclass_income()
             newcat.code = code
@@ -321,14 +318,14 @@ def podclassadd(request):
             newcat.name_rus = name_rus
             newcat.save()
         else:
-            return HttpResponse('{"status": "Подкласс с таким кодом уже существует"}', content_type="application/json", status = 400) 
+            return HttpResponse('{"status": "Подкласс с таким кодом уже существует"}', content_type="application/json", status=400)
     else:
-        return HttpResponse('{"status": "Поле код обязателен для заполнения"}', content_type="application/json", status = 400) 
+        return HttpResponse('{"status": "Поле код обязателен для заполнения"}', content_type="application/json", status=400)
 
     queryset = podclass_income.objects.all()
     paginator = CustomPagination()
     paginated_queryset = paginator.paginate_queryset(queryset, request)
-    serial = shareSerializer(paginated_queryset, many = True)
+    serial = shareSerializer(paginated_queryset, many=True)
     return paginator.get_paginated_response(serial.data)
 
 
@@ -343,7 +340,7 @@ def podclassedit(request):
     name_kaz = data['name_kaz']
     name_rus = data['name_rus']
 
-    newcat = podclass_income.objects.get(id = id)
+    newcat = podclass_income.objects.get(id=id)
     # newcat.code = code
     newcat.name_kaz = name_kaz
     newcat.name_rus = name_rus
@@ -355,7 +352,7 @@ def podclassedit(request):
     #         exist = True
     #     except:
     #         exist = False
-        
+
     #     if not exist:
     #         newcat = podclass_income.objects.get(id = id)
     #         newcat.code = code
@@ -363,14 +360,14 @@ def podclassedit(request):
     #         newcat.name_rus = name_rus
     #         newcat.save()
     #     else:
-    #         return HttpResponse('{"status": "Класс с таким кодом уже существует"}', content_type="application/json", status = 400) 
+    #         return HttpResponse('{"status": "Класс с таким кодом уже существует"}', content_type="application/json", status = 400)
     # else:
-    #     return HttpResponse('{"status": "Поле код обязателен для заполнения"}', content_type="application/json", status = 400) 
+    #     return HttpResponse('{"status": "Поле код обязателен для заполнения"}', content_type="application/json", status = 400)
 
     queryset = podclass_income.objects.all()
     paginator = CustomPagination()
     paginated_queryset = paginator.paginate_queryset(queryset, request)
-    serial = shareSerializer(paginated_queryset, many = True)
+    serial = shareSerializer(paginated_queryset, many=True)
     return paginator.get_paginated_response(serial.data)
 
 
@@ -378,15 +375,15 @@ def podclassedit(request):
 @permission_classes([IsAuthenticated])
 def podclassdelete(request, id):
     try:
-        newcat = podclass_income.objects.get(id = id)
-        newcat.delete() 
+        newcat = podclass_income.objects.get(id=id)
+        newcat.delete()
     except:
-        return HttpResponse('{"status": "Ошибка удаления категории"}', content_type="application/json", status = 400)
+        return HttpResponse('{"status": "Ошибка удаления категории"}', content_type="application/json", status=400)
 
     queryset = podclass_income.objects.all()
     paginator = CustomPagination()
     paginated_queryset = paginator.paginate_queryset(queryset, request)
-    serial = shareSerializer(paginated_queryset, many = True)
+    serial = shareSerializer(paginated_queryset, many=True)
     return paginator.get_paginated_response(serial.data)
 
 
@@ -396,7 +393,7 @@ def specinclist(request):
     queryset = spec_income.objects.all()
     paginator = CustomPagination()
     paginated_queryset = paginator.paginate_queryset(queryset, request)
-    serial = shareSerializer(paginated_queryset, many = True)
+    serial = shareSerializer(paginated_queryset, many=True)
     return paginator.get_paginated_response(serial.data)
 
 
@@ -411,11 +408,11 @@ def specincadd(request):
     name_rus = data['name_rus']
     if not code == '':
         try:
-            obj = spec_income.objects.get(code = code)
+            obj = spec_income.objects.get(code=code)
             exist = True
         except:
             exist = False
-        
+
         if not exist:
             newcat = spec_income()
             newcat.code = code
@@ -423,14 +420,14 @@ def specincadd(request):
             newcat.name_rus = name_rus
             newcat.save()
         else:
-            return HttpResponse('{"status": "Подкласс с таким кодом уже существует"}', content_type="application/json", status = 400) 
+            return HttpResponse('{"status": "Подкласс с таким кодом уже существует"}', content_type="application/json", status=400)
     else:
-        return HttpResponse('{"status": "Поле код обязателен для заполнения"}', content_type="application/json", status = 400) 
+        return HttpResponse('{"status": "Поле код обязателен для заполнения"}', content_type="application/json", status=400)
 
     queryset = spec_income.objects.all()
     paginator = CustomPagination()
     paginated_queryset = paginator.paginate_queryset(queryset, request)
-    serial = shareSerializer(paginated_queryset, many = True)
+    serial = shareSerializer(paginated_queryset, many=True)
     return paginator.get_paginated_response(serial.data)
 
 
@@ -445,7 +442,7 @@ def specincedit(request):
     name_kaz = data['name_kaz']
     name_rus = data['name_rus']
 
-    newcat = spec_income.objects.get(id = id)
+    newcat = spec_income.objects.get(id=id)
     # newcat.code = code
     newcat.name_kaz = name_kaz
     newcat.name_rus = name_rus
@@ -457,7 +454,7 @@ def specincedit(request):
     #         exist = True
     #     except:
     #         exist = False
-        
+
     #     if not exist:
     #         newcat = spec_income.objects.get(id = id)
     #         newcat.code = code
@@ -465,14 +462,14 @@ def specincedit(request):
     #         newcat.name_rus = name_rus
     #         newcat.save()
     #     else:
-    #         return HttpResponse('{"status": "Класс с таким кодом уже существует"}', content_type="application/json", status = 400) 
+    #         return HttpResponse('{"status": "Класс с таким кодом уже существует"}', content_type="application/json", status = 400)
     # else:
-    #     return HttpResponse('{"status": "Поле код обязателен для заполнения"}', content_type="application/json", status = 400) 
+    #     return HttpResponse('{"status": "Поле код обязателен для заполнения"}', content_type="application/json", status = 400)
 
     queryset = spec_income.objects.all()
     paginator = CustomPagination()
     paginated_queryset = paginator.paginate_queryset(queryset, request)
-    serial = shareSerializer(paginated_queryset, many = True)
+    serial = shareSerializer(paginated_queryset, many=True)
     return paginator.get_paginated_response(serial.data)
 
 
@@ -480,15 +477,15 @@ def specincedit(request):
 @permission_classes([IsAuthenticated])
 def specincdelete(request, id):
     try:
-        newcat = spec_income.objects.get(id = id)
-        newcat.delete() 
+        newcat = spec_income.objects.get(id=id)
+        newcat.delete()
     except:
-        return HttpResponse('{"status": "Ошибка удаления категории"}', content_type="application/json", status = 400)
+        return HttpResponse('{"status": "Ошибка удаления категории"}', content_type="application/json", status=400)
 
     queryset = spec_income.objects.all()
     paginator = CustomPagination()
     paginated_queryset = paginator.paginate_queryset(queryset, request)
-    serial = shareSerializer(paginated_queryset, many = True)
+    serial = shareSerializer(paginated_queryset, many=True)
     return paginator.get_paginated_response(serial.data)
 
 
@@ -498,7 +495,7 @@ def classificationinclist(request):
     queryset = classification_income.objects.all()
     paginator = CustomPagination()
     paginated_queryset = paginator.paginate_queryset(queryset, request)
-    serial = classificatinIncSerializer(paginated_queryset, many = True)
+    serial = classificatinIncSerializer(paginated_queryset, many=True)
     return paginator.get_paginated_response(serial.data)
 
 
@@ -517,10 +514,10 @@ def classificationincadd(request):
     datastr = request.body
     data = json.loads(datastr)
 
-    category = data['category']
-    classs = data['class']
-    podclass = data['podclass']
-    spec = data['spec']
+    category = data['_category_id']
+    classs = data['_classs_id']
+    podclass = data['_podclass_id']
+    spec = data['_spec_id']
 
     try:
         catobj = category_income.objects.get(id=category)
@@ -539,12 +536,12 @@ def classificationincadd(request):
         record.name_kaz = specobj.name_kaz
         record.save()
     except:
-        return HttpResponse('{"status": "Ошибка добавления классификации по поступлениям. Неверные данные"}', content_type="application/json", status = 400) 
+        return HttpResponse('{"status": "Ошибка добавления классификации по поступлениям. Неверные данные"}', content_type="application/json", status=400)
 
     queryset = classification_income.objects.all()
     paginator = CustomPagination()
     paginated_queryset = paginator.paginate_queryset(queryset, request)
-    serial = shareSerializer(paginated_queryset, many = True)
+    serial = shareSerializer(paginated_queryset, many=True)
     return paginator.get_paginated_response(serial.data)
 
 
@@ -556,10 +553,10 @@ def classificationincedit(request):
     data = json.loads(datastr)
 
     id = data['id']
-    category = data['category']
-    classs = data['class']
-    podclass = data['podclass']
-    spec = data['spec']
+    category = data['_category_id']
+    classs = data['_classs_id']
+    podclass = data['_podclass_id']
+    spec = data['_spec_id']
 
     try:
         catobj = category_income.objects.get(id=category)
@@ -578,29 +575,28 @@ def classificationincedit(request):
         record.name_kaz = specobj.name_kaz
         record.save()
     except:
-        return HttpResponse('{"status": "Ошибка изменения классификации по поступлениям. Неверные данные"}', content_type="application/json", status = 400) 
+        return HttpResponse('{"status": "Ошибка изменения классификации по поступлениям. Неверные данные"}', content_type="application/json", status=400)
 
     queryset = classification_income.objects.all()
     paginator = CustomPagination()
     paginated_queryset = paginator.paginate_queryset(queryset, request)
-    serial = shareSerializer(paginated_queryset, many = True)
+    serial = shareSerializer(paginated_queryset, many=True)
     return paginator.get_paginated_response(serial.data)
-
 
 
 @api_view(['DELETE'])
 @permission_classes([IsAuthenticated])
 def classificationincdelete(request, id):
     try:
-        newcat = classification_income.objects.get(id = id)
-        newcat.delete() 
+        newcat = classification_income.objects.get(id=id)
+        newcat.delete()
     except:
-        return HttpResponse('{"status": "Ошибка удаления классификации поступления"}', content_type="application/json", status = 400)
+        return HttpResponse('{"status": "Ошибка удаления классификации поступления"}', content_type="application/json", status=400)
 
     queryset = classification_income.objects.all()
     paginator = CustomPagination()
     paginated_queryset = paginator.paginate_queryset(queryset, request)
-    serial = shareSerializer(paginated_queryset, many = True)
+    serial = shareSerializer(paginated_queryset, many=True)
     return paginator.get_paginated_response(serial.data)
 
 
@@ -610,10 +606,8 @@ def typeincdoclist(request):
     queryset = type_izm_doc.objects.all()
     paginator = CustomPagination()
     paginated_queryset = paginator.paginate_queryset(queryset, request)
-    serial = shareSerializer(paginated_queryset, many = True)
+    serial = shareSerializer(paginated_queryset, many=True)
     return paginator.get_paginated_response(serial.data)
-
-
 
 
 # ****************************************************************
@@ -625,7 +619,7 @@ def funcgrouplist(request):
     queryset = funcgroup.objects.all()
     paginator = CustomPagination()
     paginated_queryset = paginator.paginate_queryset(queryset, request)
-    serial = shareSerializer(paginated_queryset, many = True)
+    serial = shareSerializer(paginated_queryset, many=True)
     return paginator.get_paginated_response(serial.data)
 
 
@@ -635,7 +629,7 @@ def funcpodgrouplist(request):
     queryset = funcpodgroup.objects.all()
     paginator = CustomPagination()
     paginated_queryset = paginator.paginate_queryset(queryset, request)
-    serial = shareSerializer(paginated_queryset, many = True)
+    serial = shareSerializer(paginated_queryset, many=True)
     return paginator.get_paginated_response(serial.data)
 
 
@@ -645,7 +639,7 @@ def abplist(request):
     queryset = abp.objects.all()
     paginator = CustomPagination()
     paginated_queryset = paginator.paginate_queryset(queryset, request)
-    serial = shareSerializer(paginated_queryset, many = True)
+    serial = shareSerializer(paginated_queryset, many=True)
     return paginator.get_paginated_response(serial.data)
 
 
@@ -655,7 +649,7 @@ def programlist(request):
     queryset = program.objects.all()
     paginator = CustomPagination()
     paginated_queryset = paginator.paginate_queryset(queryset, request)
-    serial = shareSerializer(paginated_queryset, many = True)
+    serial = shareSerializer(paginated_queryset, many=True)
     return paginator.get_paginated_response(serial.data)
 
 
@@ -665,7 +659,7 @@ def podprogramlist(request):
     queryset = podprogram.objects.all()
     paginator = CustomPagination()
     paginated_queryset = paginator.paginate_queryset(queryset, request)
-    serial = shareSerializer(paginated_queryset, many = True)
+    serial = shareSerializer(paginated_queryset, many=True)
     return paginator.get_paginated_response(serial.data)
 
 
@@ -675,7 +669,7 @@ def fkrlist(request):
     queryset = fkr.objects.all()
     paginator = CustomPagination()
     paginated_queryset = paginator.paginate_queryset(queryset, request)
-    serial = shareSerializer(paginated_queryset, many = True)
+    serial = shareSerializer(paginated_queryset, many=True)
     return paginator.get_paginated_response(serial.data)
 
 
@@ -685,18 +679,5 @@ def specexplist(request):
     queryset = specexp.objects.all()
     paginator = CustomPagination()
     paginated_queryset = paginator.paginate_queryset(queryset, request)
-    serial = shareSerializer(paginated_queryset, many = True)
+    serial = shareSerializer(paginated_queryset, many=True)
     return paginator.get_paginated_response(serial.data)
-
-
-
-
-
-
-
-
-
-
-
-
-
