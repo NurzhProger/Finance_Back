@@ -11,28 +11,32 @@ class class_income(models.Model):
     code = models.TextField(null=True)
     name_kaz = models.TextField(null=True)
     name_rus = models.TextField(null=True)
+    _category = models.ForeignKey(category_income, blank=True, null=True, on_delete=models.CASCADE, verbose_name='Категория')
+
 
 
 class podclass_income(models.Model):
     code = models.TextField(null=True)
     name_kaz = models.TextField(null=True)
     name_rus = models.TextField(null=True)
+    _classs = models.ForeignKey(class_income, blank=True, null=True, on_delete=models.CASCADE, verbose_name='Класс')
 
 
 class spec_income(models.Model):
     code = models.TextField(null=True)
     name_kaz = models.TextField(null=True)
     name_rus = models.TextField(null=True)
+    _podclass = models.ForeignKey(podclass_income, blank=True, null=True, on_delete=models.CASCADE, verbose_name='Подкласс')
 
 
 class classification_income(models.Model):
     code = models.TextField(null=True)
     name_kaz = models.TextField(null=True)
     name_rus = models.TextField(null=True)
-    _category = models.ForeignKey(category_income, blank=True, on_delete=models.CASCADE, verbose_name='Категория')
-    _classs = models.ForeignKey(class_income, blank=True, on_delete=models.CASCADE, verbose_name='Класс')
-    _podclass = models.ForeignKey(podclass_income, blank=True, on_delete=models.CASCADE, verbose_name='Подкласс')
-    _spec = models.ForeignKey(spec_income, blank=True, on_delete=models.CASCADE, verbose_name='Специфика')
+    _category = models.ForeignKey(category_income, blank=True, null=True, on_delete=models.CASCADE, verbose_name='Категория')
+    _classs = models.ForeignKey(class_income, blank=True, null=True, on_delete=models.CASCADE, verbose_name='Класс')
+    _podclass = models.ForeignKey(podclass_income, blank=True, null=True, on_delete=models.CASCADE, verbose_name='Подкласс')
+    _spec = models.ForeignKey(spec_income, blank=True, null=True, on_delete=models.CASCADE, verbose_name='Специфика')
 
 
 class budjet(models.Model):

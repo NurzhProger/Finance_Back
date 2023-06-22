@@ -339,99 +339,16 @@ def ekrreadxls(path='ekrnewkaz.xlsx'):
             for row in first_sheet.iter_rows(values_only=True):
 
                 # Пропускаем заголовки таблицы
-                if type(row[0]) == str or type(row[1]) == str or type(row[2]) == str or type(row[3]) == str or type(row[4]) == str:
+                if type(row[1]) == str:
                     continue
 
-                # 1. Находим функциональную группу
-                if not row[0] == None:
-                    # Если длина кода равна 1, то дополним впереди 0: типа 01, 02 и т.д.
-                    if len(str(row[0])) == 1:
-                        code_fg = '0' + str(row[0])
-                    else:
-                        code_fg = str(row[0])
-                    
-                    zapis = funcgroup.objects.get(code = code_fg)
-                    zapis.name_kaz = row[5]
-                    zapis.save()
-                    fg_id = zapis.id
-                    continue  #Переходим к следующему циклу
-                    #----------------------------------------------------------------- 
-
-
-                # 2. Находим функциональную Подгруппу
                 if not row[1] == None:
-                    zapis = funcpodgroup.objects.get(code = row[1], _funcgroup = fg_id)
-                    zapis.name_kaz = row[5]
+                    code = str(row[1])
+                    
+                    zapis = spec_exp.objects.get(code = code)
+                    zapis.name_kaz = row[2]
                     zapis.save()
-                    fpg_id = zapis.id
-                    code_fpg = str(row[1])
-                    continue  #Переходим к следующему циклу
-
-                
-                # Находим АБП
-                if not row[2] == None:
-                    try:
-                        zapis = abp.objects.get(code = row[2])
-                        zapis.name_kaz = row[5]
-                        zapis.save()
-                        abp_id = zapis.id
-                        code_abp = str(row[2])
-                    except:
-                        print('abp code:' + str(row[2]))
-                    continue  #Переходим к следующему циклу
-                    #-----------------------------------------------------------------
-                 
-
-
-
-                # Находим программы
-                if not row[3] == None:
-                    if len(str(row[3])) == 1:
-                        code_pr = code_fg + '/' + code_fpg + '/' + code_abp + '/00' + str(row[3])
-                    elif len(str(row[3])) == 2:
-                        code_pr = code_fg + '/' + code_fpg + '/' + code_abp + '/0' + str(row[3])
-                    else:
-                        code_pr = code_fg + '/' + code_fpg + '/' + code_abp + '/' + str(row[3])
-
-                    try:
-                        zapis = program.objects.get(code = code_pr)
-                        zapis.name_kaz = row[5]
-                        zapis.save()
-                        pr_id = zapis.id
-                    except:
-                        print('pr code:' + code_pr)
-                    continue  #Переходим к следующему циклу
-                    #-----------------------------------------------------------------
-
-
-
-                # Находим Подпрограммы
-                if not row[4] == None:
-                    if len(str(row[4])) == 1:
-                        code_ppr = code_pr + '/00' + str(row[4])
-                    elif len(str(row[4])) == 2:
-                        code_ppr = code_pr + '/0' + str(row[4])
-                    else:
-                        code_ppr = code_pr + '/' + str(row[4])
-
-                    masscode = code_ppr.split('/')
-                    codefkr = masscode[2] + '/' + masscode[3] + '/' + masscode[4]
-
-                    try:
-                        zapis = podprogram.objects.get(code = code_ppr)
-                        zapis.name_kaz = row[5]
-                        zapis.save()
-                        ppr_id = zapis.id
-                    except:
-                        print('ppr code:' + code_ppr)
-
-                    try:
-                        zapis = fkr.objects.get(code = codefkr)
-                        zapis.name_kaz = row[5]
-                        zapis.save()
-                    except:
-                        print('ppr code:' + codefkr)
-                    continue  #Переходим к следующему циклу
+                    #----------------------------------------------------------------- 
 
 
             
@@ -460,6 +377,186 @@ def ekrreadxls(path='ekrnewkaz.xlsx'):
                         newexp.name_rus = row[2]
                         newexp.save()
                     # ---------------------------------------------- 
+                         
+        # Закрываем книгу
+        workbook.close()
+    return 'Успешно'
+
+
+
+
+def inc_dir_import_xls(path='dohod_codes.xlsx'):  
+    if os.path.exists(path):  
+        obj_cat = category_income.objects.all().values_list()
+        obj_clas = class_income.objects.all().values_list()
+        obj_podcl = podclass_income.objects.all().values_list()
+        obj_spec = spec_income.objects.all().values_list()
+        obj_classific = classification_income.objects.all().values_list()
+
+        cat_id = 0
+        clas_id = 0
+        podcl_id = 0
+        spec_id = 0
+
+        cat_code = ''
+        clas_code = ''
+        podcl_code = ''
+        spec_code = ''
+
+ 
+        workbook = load_workbook(path)
+        sheet_names = workbook.sheetnames
+        first_sheet = workbook[sheet_names[0]]
+
+        lang = ''
+        if first_sheet._cells[1,1].value == 'Категория':
+            lang = 'rus'
+
+        if first_sheet._cells[1,1].value == 'Функционалдық топ':
+            lang = 'kaz'
+
+        if lang == '':
+            return 'error excel'
+       
+
+        if lang == 'kaz':
+            # Читаем данные из ячеек в выбранном листе
+            for row in first_sheet.iter_rows(values_only=True):
+
+                # Пропускаем заголовки таблицы
+                if type(row[0]) == str:
+                    continue
+
+                if not row[0] == None:
+                    code = str(row[0])
+                    
+                    zapis = category_income.objects.get(code = code)
+                    zapis.name_kaz = row[4]
+                    zapis.save()
+                    #----------------------------------------------------------------- 
+
+
+            
+
+        if lang == 'rus':
+             # Читаем данные из ячеек в выбранном листе
+            for row in first_sheet.iter_rows(values_only=True):
+
+                # Пропускаем заголовки таблицы
+                if type(row[0]) == str or type(row[1]) == str or type(row[2]) == str or type(row[3]) == str:
+                    continue
+
+                if not row[0] == None :
+                    code = str(row[0])
+                    cat_code = code
+
+                    # Ищем, есть ли в базе
+                    existfg = False
+                    for itemfg in obj_cat:
+                        if itemfg[1] == code:
+                            existfg = True
+                            cat_id = itemfg[0]
+
+                    # Если не существует, то создаем новую
+                    if not existfg:
+                        newexp = category_income()
+                        newexp.code = code
+                        newexp.name_rus = row[4]
+                        newexp.save()
+                        cat_id = newexp.id
+                    # ---------------------------------------------- 
+
+
+                if not row[1] == None :
+                    code = str(row[1])
+                    if len(code) == 1:
+                        code = '0' + code
+                    clas_code = cat_code + '/' + code
+
+    
+                    # Ищем, есть ли в базе функ группа с таким кодом
+                    existfg = False
+                    for itemfg in obj_clas:
+                        if itemfg[1] == clas_code:
+                            existfg = True
+                            clas_id = itemfg[0]
+
+                    # Если не существует, то создаем новую
+                    if not existfg:
+                        newexp = class_income()
+                        newexp._category_id = cat_id
+                        newexp.code = clas_code
+                        newexp.name_rus = row[4]
+                        newexp.save()
+                        clas_id = newexp.id
+                    # ----------------------------------------------
+
+                if not row[2] == None :
+                    code = str(row[2])
+                    podcl_code = clas_code + '/' + code
+    
+                    # Ищем, есть ли в базе функ группа с таким кодом
+                    existfg = False
+                    for itemfg in obj_podcl:
+                        if itemfg[1] == podcl_code:
+                            existfg = True
+                            podcl_id = itemfg[0]
+
+                    # Если не существует, то создаем новую
+                    if not existfg:
+                        newexp = podclass_income()
+                        newexp._classs_id = clas_id
+                        newexp.code = podcl_code
+                        newexp.name_rus = row[4]
+                        newexp.save()
+                        podcl_id = newexp.id
+                    # ----------------------------------------------
+
+
+                if not row[3] == None :
+                    code = str(row[3])
+                    if len(code) == 1:
+                        code = '0' + code
+                    spec_code = podcl_code + '/' + code
+    
+                    # Ищем, есть ли в базе функ группа с таким кодом
+                    existfg = False
+                    for itemfg in obj_spec:
+                        if itemfg[1] == spec_code:
+                            existfg = True
+                            spec_id = itemfg[0]
+
+                    # Если не существует, то создаем новую
+                    if not existfg:
+                        newexp = spec_income()
+                        newexp._podclass_id = podcl_id
+                        newexp.code = spec_code
+                        newexp.name_rus = row[4]
+                        newexp.save()
+                        spec_id = newexp.id
+                    # ----------------------------------------------
+
+
+
+                    # Классификация по поступлениям
+                    existfg = False
+                    for itemfg in obj_classific:
+                        if itemfg[1] == spec_code:
+                            existfg = True
+                            spec_id = itemfg[0]
+
+                    # Если не существует, то создаем новую
+                    if not existfg:
+                        newexp = classification_income()
+                        newexp._category_id = cat_id
+                        newexp._classs_id = clas_id
+                        newexp._podclass_id = podcl_id
+                        newexp._spec_id = spec_id
+                        newexp.code = spec_code
+                        newexp.name_rus = row[4]
+                        newexp.save()
+                        spec_id = newexp.id
+                    # ----------------------------------------------
                          
         # Закрываем книгу
         workbook.close()

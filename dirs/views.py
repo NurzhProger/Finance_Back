@@ -103,6 +103,12 @@ def ekrupdate(request):
     workbook = ekrreadxls()
     return HttpResponse('{"status": "Загружены ЭКР"}', content_type="application/json", status=200)
 
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def inc_dir_import(request):
+    workbook = inc_dir_import_xls()
+    return HttpResponse('{"status": "Загружены спр по доходам"}', content_type="application/json", status=200)
+
 
 # ****************************************************************
 # **************Сервисы справочников поступления******************
