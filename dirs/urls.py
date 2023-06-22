@@ -39,6 +39,7 @@ urlpatterns = [
 
 
     path('fkrupdate', views.fkrupdate, name='index'),
+    path('ekrupdate', views.ekrupdate, name='index'),
 
     path('funcgrouplist', views.funcgrouplist, name='index'),
     path('funcpodgrouplist', views.funcpodgrouplist, name='index'),
