@@ -97,6 +97,97 @@ class izm_inc_tbl1(models.Model):
 
 
 
+
+# Утвержденный план по расходам
+class utv_exp(models.Model):
+    nom = models.TextField(null=True)
+    _date = models.DateField(null=True)
+    _organization = models.ForeignKey(organization, blank=True, on_delete=models.CASCADE, verbose_name='Организация документа')
+    _budjet = models.ForeignKey(budjet, blank=True, on_delete=models.CASCADE, verbose_name='Бюджет документа')
+    deleted = models.BooleanField(default=False, null=True)
+   
+
+# ТЧ платежи утвержденного плана по расходам
+class utv_exp_paym(models.Model):
+    _utv_exp = models.ForeignKey(utv_exp, blank=True, on_delete=models.CASCADE, verbose_name='ИД документа')
+    _fkr = models.ForeignKey(fkr, blank=True, on_delete=models.CASCADE, verbose_name='ФКР')
+    _spec = models.ForeignKey(spec_exp, blank=True, on_delete=models.CASCADE, verbose_name='Специфика')
+    _organization = models.ForeignKey(organization, null=True, on_delete=models.CASCADE, verbose_name='Организация документа')
+    _date = models.DateField(null=True)
+    deleted = models.BooleanField(default=False, null=True)
+    god = models.FloatField(null=True)
+    sm1 = models.FloatField(null=True)
+    sm2 = models.FloatField(null=True)
+    sm3 = models.FloatField(null=True)
+    sm4 = models.FloatField(null=True)
+    sm5 = models.FloatField(null=True)
+    sm6 = models.FloatField(null=True)
+    sm7 = models.FloatField(null=True)
+    sm8 = models.FloatField(null=True)
+    sm9 = models.FloatField(null=True)
+    sm10 = models.FloatField(null=True)
+    sm11 = models.FloatField(null=True)
+    sm12 = models.FloatField(null=True)
+    
+
+
+# ТЧ обязательства утвержденного плана по расходам
+class utv_exp_oblig(models.Model):
+    _utv_exp = models.ForeignKey(utv_exp, blank=True, on_delete=models.CASCADE, verbose_name='ИД документа')
+    _fkr = models.ForeignKey(fkr, blank=True, on_delete=models.CASCADE, verbose_name='ФКР')
+    _spec = models.ForeignKey(spec_exp, blank=True, on_delete=models.CASCADE, verbose_name='Специфика')
+    _organization = models.ForeignKey(organization, null=True, on_delete=models.CASCADE, verbose_name='Организация документа')
+    _date = models.DateField(null=True)
+    deleted = models.BooleanField(default=False, null=True)
+    god = models.FloatField(null=True)
+    sm1 = models.FloatField(null=True)
+    sm2 = models.FloatField(null=True)
+    sm3 = models.FloatField(null=True)
+    sm4 = models.FloatField(null=True)
+    sm5 = models.FloatField(null=True)
+    sm6 = models.FloatField(null=True)
+    sm7 = models.FloatField(null=True)
+    sm8 = models.FloatField(null=True)
+    sm9 = models.FloatField(null=True)
+    sm10 = models.FloatField(null=True)
+    sm11 = models.FloatField(null=True)
+    sm12 = models.FloatField(null=True)
+    
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 # Импорт форма 2-19 (поступления)
 class import219(models.Model):
     nom = models.TextField(null=True)

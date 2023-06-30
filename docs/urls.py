@@ -13,5 +13,12 @@ urlpatterns = [
     path('izmincdelete/<int:id>', views.izmincdelete, name='index'),
     path('incgetplanbyclassif', views.incgetplanbyclassif, name='index'), 
 
+
+    # Расходы документы
+    path('utvexplist', views.utvexplist, name='index'),
+    path('utvexpitem/<int:id>', views.utvexpitem, name='index'),
+    path('utvexpsave', views.utvexpsave, name='index'),
+    path('utvexpdelete/<int:id>', views.utvexpdelete, name='index'),
+
     path('import219', views.import219, name='index'), 
 ]

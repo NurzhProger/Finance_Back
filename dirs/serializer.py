@@ -5,6 +5,14 @@ class shareSerializer(serializers.ModelSerializer):
     class Meta:
         model = category_income
         fields = '__all__'
+
+class typedocSerializer(serializers.ModelSerializer):
+    _type_izm_doc = serializers.CharField(source = 'id')
+    type_izm_name = serializers.CharField(source = 'name_rus')
+    class Meta:
+        model = type_izm_doc
+        fields = ('_type_izm_doc', 'type_izm_name')
+
         
 class organizationSerializer(serializers.ModelSerializer):
     budjet_name = serializers.CharField(source = '_budjet.name_rus')

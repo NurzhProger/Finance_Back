@@ -30,10 +30,14 @@ def getincplanbyclassif(organization, date = None, classification = ''):
                                             select * from izm),
                         classname as (SELECT * FROM public.dirs_classification_income
                                      WHERE id in (select _classification_id from union_utv_izm))
-                    SELECT _classification_id, CONCAT(classname.code, ' - ', classname.name_rus) as classification_name,  sum(sm1) as sm1, sum(sm2) as sm2, sum(sm3) as sm3, sum(sm4) as sm4, sum(sm5) as sm5, sum(sm6) as sm6, sum(sm7) as sm7, sum(sm8) as sm8, sum(sm9) as sm9, sum(sm10) as sm10, sum(sm11) as sm11, sum(sm12) as sm12 from union_utv_izm
+                    SELECT _classification_id as _classification, classname.code as classification_code, classname.name_rus as classification_name,  
+                    sum(sm1) as utv1, sum(sm2) as utv2, sum(sm3) as utv3, sum(sm4) as utv4, sum(sm5) as utv5, sum(sm6) as utv6, sum(sm7) as utv7, sum(sm8) as utv8, sum(sm9) as utv9, sum(sm10) as utv10, sum(sm11) as utv11, sum(sm12) as utv12,
+                    0 as sm1, 0 as sm2, 0 as sm3, 0 as sm4, 0 as sm5, 0 as sm6, 0 as sm7, 0 as sm8, 0 as sm9, 0 as sm10, 0 as sm11, 0 as sm12,
+                    0 as itog1, 0 as itog2, 0 as itog3, 0 as itog4, 0 as itog5, 0 as itog6, 0 as itog7, 0 as itog8, 0 as itog9, 0 as itog10, 0 as itog11, 0 as itog12
+                    FROM union_utv_izm
                     LEFT JOIN classname
                     ON _classification_id = classname.id
-                    GROUP BY _classification_id, classification_name
+                    GROUP BY _classification_id, classification_code, classification_name
                     ORDER BY _classification_id"""
 
     with connection.cursor() as cursor:

@@ -7,6 +7,7 @@ import json
 from .models import *
 from .serializer import *
 from .shareModule import *
+from django.db.models import Q
 
 
 class CustomPagination(pagination.LimitOffsetPagination):
@@ -504,7 +505,13 @@ def specincdelete(request, id):
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
 def classificationinclist(request):
-    queryset = classification_income.objects.all()
+    try:
+        search = request.GET['search']
+    except:
+        search = ''
+    queryset = classification_income.objects.filter(Q(code__icontains=search)|Q(name_rus__icontains=search))
+
+    # queryset = classification_income.objects.all()
     paginator = CustomPagination()
     paginated_queryset = paginator.paginate_queryset(queryset, request)
     serial = classificatinIncSerializer(paginated_queryset, many=True)
@@ -616,10 +623,12 @@ def classificationincdelete(request, id):
 @permission_classes([IsAuthenticated])
 def typeincdoclist(request):
     queryset = type_izm_doc.objects.all()
-    paginator = CustomPagination()
-    paginated_queryset = paginator.paginate_queryset(queryset, request)
-    serial = shareSerializer(paginated_queryset, many=True)
-    return paginator.get_paginated_response(serial.data)
+    # paginator = CustomPagination()
+    # paginated_queryset = paginator.paginate_queryset(queryset, request)
+    serial = typedocSerializer(queryset, many=True)
+    # return paginator.get_paginated_response(serial.data)
+    return response.Response(serial.data)
+    # return HttpResponse(serial.data, content_type="application/json", status = 200)
 
 
 # ****************************************************************
@@ -678,7 +687,13 @@ def podprogramlist(request):
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
 def fkrlist(request):
-    queryset = fkr.objects.all()
+    try:
+        search = request.GET['search']
+    except:
+        search = ''
+    queryset = fkr.objects.filter(Q(code__icontains=search)|Q(name_rus__icontains=search))
+
+    # queryset = fkr.objects.all()
     paginator = CustomPagination()
     paginated_queryset = paginator.paginate_queryset(queryset, request)
     serial = shareSerializer(paginated_queryset, many=True)
