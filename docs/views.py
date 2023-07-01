@@ -3,6 +3,7 @@ from rest_framework import pagination, response
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import IsAuthenticated
 import json
+import base64
 from datetime import datetime, timedelta
 import calendar
 from django.db import connection
@@ -194,7 +195,6 @@ def izminclist(request):
     return paginator.get_paginated_response(serial.data)
 
 
-
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
 def izmincitem(request, id):
@@ -202,7 +202,7 @@ def izmincitem(request, id):
     queryset_doc = izm_inc.objects.get(id=id)
     serialdoc = izm_inc_Serializer(queryset_doc)
 
-    queryset_tbl1 = izm_inc_tbl1.objects.filter(_izm_inc_id=queryset_doc.id)
+    queryset_tbl1 = izm_inc_tbl1.objects.filter(_izm_inc_id=queryset_doc.id).order_by('_classification')
     serialtbl1 = izm_inc_tbl1_Serializer(queryset_tbl1, many = True)
 
     resp = {
@@ -213,8 +213,6 @@ def izmincitem(request, id):
     return HttpResponse(tbl1res, content_type="application/json", status = 200)
 
 
-
-
 @api_view(['POST'])
 @permission_classes([IsAuthenticated])
 def izmincsave(request):
@@ -223,29 +221,77 @@ def izmincsave(request):
     doc_req = data['doc']
     tbl1_req = data['tbl1']
 
-  
-    # Получаем остатки по классиф-ям поступлении организации
-    # remains = getincplanbyclassif(doc_req['_organization'], date = datetime.strptime(doc_req['_date'], '%d.%m.%Y'))
 
-    # Фрагмент проверки сумм изменении и остатков
+    list_clasif = ''
+    for itm in tbl1_req:
+        if list_clasif == '':
+            list_clasif = str(itm['_classification'])
+            continue
+        list_clasif = list_clasif  + ', ' + str(itm['_classification']) 
+
+    date = datetime.strptime(doc_req['_date'], '%d.%m.%Y %H:%M:%S')
+    date_start = datetime.strptime(str(date.year) + "-01-01 00:00:00", '%Y-%m-%d %H:%M:%S')
+    dateend = date
+
+    query = f"""with sm as (SELECT _classification_id, sum(sm1) as sm1, sum(sm2) as sm2, sum(sm3) as sm3, sum(sm4) as sm4, sum(sm5) as sm5, sum(sm6) as sm6, sum(sm7) as sm7, sum(sm8) as sm8, sum(sm9) as sm9, sum(sm10) as sm10, sum(sm11) as sm11, sum(sm12) as sm12 
+                                FROM public.docs_utv_inc_tbl1
+                                where _organization_id = {doc_req['_organization']} and not deleted and _date>='{date_start}' and _date < '{dateend}' and _classification_id in ({list_clasif})  
+                                group by _classification_id),
+                        izm as (SELECT _classification_id,  sum(sm1) as sm1, sum(sm2) as sm2, sum(sm3) as sm3, sum(sm4) as sm4, sum(sm5) as sm5, sum(sm6) as sm6, sum(sm7) as sm7, sum(sm8) as sm8, sum(sm9) as sm9, sum(sm10) as sm10, sum(sm11) as sm11, sum(sm12) as sm12 
+                                FROM public.docs_izm_inc_tbl1
+                                where _organization_id = {doc_req['_organization']} and not deleted and _date>='{date_start}' and _date < '{dateend}' and _classification_id in ({list_clasif})
+                                group by _classification_id),
+                        union_sm_izm as (select * from sm
+                                            union all
+                                            select * from izm),
+                        classname as (SELECT * FROM public.dirs_classification_income
+                                     WHERE id in ({list_clasif}))
+                    SELECT classname.id as _classification, classname.code as classification_code, classname.name_rus as classification_name,  
+                    COALESCE(sum(sm1),0) as sm1, 
+					COALESCE(sum(sm1) + sum(sm2),0) as sm2, 
+					COALESCE(sum(sm1) + sum(sm2) + sum(sm3),0) as sm3, 
+					COALESCE(sum(sm1) + sum(sm2) + sum(sm3) + sum(sm4),0) as sm4, 
+					COALESCE(sum(sm1) + sum(sm2) + sum(sm3) + sum(sm4) + sum(sm5),0) as sm5, 
+					COALESCE(sum(sm1) + sum(sm2) + sum(sm3) + sum(sm4) + sum(sm5) + sum(sm6),0) as sm6, 
+					COALESCE(sum(sm1) + sum(sm2) + sum(sm3) + sum(sm4) + sum(sm5) + sum(sm6) + sum(sm7),0) as sm7, 
+					COALESCE(sum(sm1) + sum(sm2) + sum(sm3) + sum(sm4) + sum(sm5) + sum(sm6) + sum(sm7) + sum(sm8),0) as sm8, 
+					COALESCE(sum(sm1) + sum(sm2) + sum(sm3) + sum(sm4) + sum(sm5) + sum(sm6) + sum(sm7) + sum(sm8) + sum(sm9),0) as sm9, 
+					COALESCE(sum(sm1) + sum(sm2) + sum(sm3) + sum(sm4) + sum(sm5) + sum(sm6) + sum(sm7) + sum(sm8) + sum(sm9) + sum(sm10),0) as sm10, 
+					COALESCE(sum(sm1) + sum(sm2) + sum(sm3) + sum(sm4) + sum(sm5) + sum(sm6) + sum(sm7) + sum(sm8) + sum(sm9) + sum(sm10) + sum(sm11),0) as sm11, 
+					COALESCE(sum(sm1) + sum(sm2) + sum(sm3) + sum(sm4) + sum(sm5) + sum(sm6) + sum(sm7) + sum(sm8) + sum(sm9) + sum(sm10) + sum(sm11) + sum(sm12),0) as sm12
+                    FROM union_sm_izm
+                    RIGHT JOIN classname
+                    ON _classification_id = classname.id
+                    GROUP BY _classification, classification_code, classification_name
+                    ORDER BY _classification"""
+    
+    with connection.cursor() as cursor:
+        cursor.execute(query)
+        # asd = cursor.fetchall()
+        columns = [col[0] for col in cursor.description]
+        result = [dict(zip(columns, row))
+                for row in cursor.fetchall()]
+        
+
     masserror = []
-    # for itm in tbl1_req:
-    #     if not itm['tip'] == 'sm':
-    #         continue
-    #     ost = [person for person in remains if person['_classification_id'] == itm['_classification']]
-    #     if len(ost)==0:
-    #         return HttpResponse('{"status": "Нет остатков сумм по классификации ' + itm['classification_name'] + '"}', content_type="application/json", status = 400)
-    #     for count in range(1, 13):
-    #         if (itm['sm'+str(count)] + ost[0]['sm'+str(count)]) < 0:
-    #             masserror.append({"_classification": itm['_classification'],  "month":count})
+    # Фрагмент проверки сумм изменении и остатков
+    for itm in tbl1_req:
+        ost = [itemres for itemres in result if itemres['_classification'] == itm['_classification']]
+        if len(ost)==0:
+            return HttpResponse('{"status": "Ошибка в строке с классификацией ' + itm['classification_name'] + '"}', content_type="application/json", status = 400)
+        
+        for count in range(1, 13):
+            if (itm['sm'+str(count)] + ost[0]['sm'+str(count)]) < 0:
+                masserror.append({"_classification": itm['_classification'],  "month":count, "name":itm['classification_name'], "code":itm['classification_code']})
+
 
     # Если массив не пустой, то возвращаем ошибку с описанием
     if len(masserror)>0:
-        return HttpResponse('{"status": "Нет остатков сумм по выбранным спецификам"}', content_type="application/json", status = 400)
+        return HttpResponse('{"status": "Нет остатков сумм по ' + masserror[0]['code'] + "  " + masserror[0]['name'] + '"}', content_type="application/json", status = 400)
                     
     # Запис шапки документа изменения по поступлениям
     try:
-        date_object = datetime.strptime(doc_req['_date'], '%d.%m.%Y')
+        date_object = datetime.strptime(doc_req['_date'], '%d.%m.%Y %H:%M:%S')
         org = organization.objects.get(id=doc_req['_organization'])
         
         # Если ИД=0, то создаем новый документ поступления
@@ -259,6 +305,7 @@ def izmincsave(request):
             itemdoc = izm_inc.objects.get(id=doc_req['id'])
 
         itemdoc._organization_id = doc_req['_organization']
+        itemdoc._type_izm_doc_id = doc_req['_type_izm_doc']
         itemdoc._budjet_id = org._budjet.id
         itemdoc._date = date_object
         # Непосредственно сохранение документа
@@ -372,7 +419,7 @@ def incgetplanbyclassif(request):
 
     date = None
     if not strdate == None:
-        date = datetime.strptime(strdate,"%d.%m.%Y").date()
+        date = datetime.strptime(strdate,"%d.%m.%Y %H:%M:%S").date()
     
     # Получаем остатки сумм плана (фильры по организации - обязательно, дата, классификация)
     res = getincplanbyclassif(_organization, date = date, classification = _classification)
@@ -391,7 +438,7 @@ def incgetplanbyclassif(request):
 
 
 # ****************************************************************
-# ***Сервисы утвержденного плана финансирования по поступлениям***
+# ***Сервисы утвержденного плана финансирования по расходам***
 # ****************************************************************
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
@@ -586,10 +633,15 @@ def utvexpdelete(request, id):
 # ****************************************************************
 # *****Сервисы импорт по поступлениям 2-19*****
 # ****************************************************************
-@api_view(['GET'])
+@api_view(['POST'])
 @permission_classes([IsAuthenticated])
 def import219(request):
-    pdftotext()
+    jsreq = json.loads(request.body)
+    with open("test.pdf", "wb") as f:
+        strbs64 = jsreq['file']
+        strbs64 = strbs64.split(',')[1]
+        f.write(base64.b64decode(strbs64))
+    pdftotext("test.pdf")
     return HttpResponse('{"status": "Ошибка получения данных"}', content_type="application/json", status = 200)
 
 

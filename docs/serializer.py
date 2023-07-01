@@ -24,7 +24,7 @@ class izm_inc_Serializer(serializers.ModelSerializer):
     org_name = serializers.CharField(source = '_organization.name_rus')
     type_izm_name = serializers.CharField(source = '_type_izm_doc.name_rus')
     budjet_name = serializers.CharField(source = '_budjet.name_kaz')
-    _date = serializers.DateField(format='%d.%m.%Y')
+    _date = serializers.DateTimeField(format='%d.%m.%Y %H:%M:%S')
     class Meta:
         model = izm_inc
         fields = '__all__'
@@ -33,7 +33,7 @@ class izm_inc_Serializer(serializers.ModelSerializer):
 class izm_inc_tbl1_Serializer(serializers.ModelSerializer):
     classification_name = serializers.CharField(source = '_classification.name_rus')
     classification_code = serializers.CharField(source = '_classification.code')
-    _date = serializers.DateField(format='%d.%m.%Y')
+    _date = serializers.DateTimeField(format='%d.%m.%Y %H:%M:%S')
     class Meta:
         model = izm_inc_tbl1
         fields = '__all__'

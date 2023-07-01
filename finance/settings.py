@@ -26,6 +26,7 @@ SECRET_KEY = 'django-insecure-4!vhj-%)weh=5k_@#!0fgz0wtko(-z@+w-xvk2^*tk4vlc&#e$
 DEBUG = True
 
 ALLOWED_HOSTS = ['*']
+DATA_UPLOAD_MAX_MEMORY_SIZE = 25242880
 # If this is used then `CORS_ALLOWED_ORIGINS` will not have any effect
 CORS_ALLOW_ALL_ORIGINS = True
 CORS_ALLOW_CREDENTIALS = True

@@ -29,16 +29,27 @@ def getincplanbyclassif(organization, date = None, classification = ''):
                                             union all
                                             select * from izm),
                         classname as (SELECT * FROM public.dirs_classification_income
-                                     WHERE id in (select _classification_id from union_utv_izm))
-                    SELECT _classification_id as _classification, classname.code as classification_code, classname.name_rus as classification_name,  
-                    sum(sm1) as utv1, sum(sm2) as utv2, sum(sm3) as utv3, sum(sm4) as utv4, sum(sm5) as utv5, sum(sm6) as utv6, sum(sm7) as utv7, sum(sm8) as utv8, sum(sm9) as utv9, sum(sm10) as utv10, sum(sm11) as utv11, sum(sm12) as utv12,
+                                     WHERE id in ({classification}))
+                    SELECT classname.id as _classification, classname.code as classification_code, classname.name_rus as classification_name,  
+                    COALESCE(sum(sm1),0) as utv1, 
+                    COALESCE(sum(sm2),0) as utv2,
+                    COALESCE(sum(sm3),0) as utv3, 
+                    COALESCE(sum(sm4),0) as utv4, 
+                    COALESCE(sum(sm5),0) as utv5, 
+                    COALESCE(sum(sm6),0) as utv6, 
+                    COALESCE(sum(sm7),0) as utv7, 
+                    COALESCE(sum(sm8),0) as utv8, 
+                    COALESCE(sum(sm9),0) as utv9, 
+                    COALESCE(sum(sm10),0) as utv10, 
+                    COALESCE(sum(sm11),0) as utv11, 
+                    COALESCE(sum(sm12),0) as utv12,
                     0 as sm1, 0 as sm2, 0 as sm3, 0 as sm4, 0 as sm5, 0 as sm6, 0 as sm7, 0 as sm8, 0 as sm9, 0 as sm10, 0 as sm11, 0 as sm12,
                     0 as itog1, 0 as itog2, 0 as itog3, 0 as itog4, 0 as itog5, 0 as itog6, 0 as itog7, 0 as itog8, 0 as itog9, 0 as itog10, 0 as itog11, 0 as itog12
                     FROM union_utv_izm
-                    LEFT JOIN classname
+                    RIGHT JOIN classname
                     ON _classification_id = classname.id
-                    GROUP BY _classification_id, classification_code, classification_name
-                    ORDER BY _classification_id"""
+                    GROUP BY classname.id, classification_code, classification_name
+                    ORDER BY _classification"""
 
     with connection.cursor() as cursor:
         cursor.execute(query)
@@ -48,10 +59,10 @@ def getincplanbyclassif(organization, date = None, classification = ''):
     return result
 
 
-def pdftotext():
+def pdftotext(filename):
     listnum = ('0', '1', '2', '3', '4', '5', '6', '7','8', '9')
     # Извлечение таблицы из PDF
-    df = tabula.read_pdf('pdf219.pdf', pages='all')
+    df = tabula.read_pdf(filename, pages='all')
 
     kp_code = ''
     index = 0

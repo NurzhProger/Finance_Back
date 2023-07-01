@@ -7,7 +7,7 @@ class shareSerializer(serializers.ModelSerializer):
         fields = '__all__'
 
 class typedocSerializer(serializers.ModelSerializer):
-    _type_izm_doc = serializers.CharField(source = 'id')
+    _type_izm_doc = serializers.IntegerField(source = 'id')
     type_izm_name = serializers.CharField(source = 'name_rus')
     class Meta:
         model = type_izm_doc

@@ -35,7 +35,7 @@ class utv_inc_tbl1(models.Model):
 # Изменение плана по поступлениям
 class izm_inc(models.Model):
     nom = models.TextField(null=True)
-    _date = models.DateField(null=True)
+    _date = models.DateTimeField(null=True)
     _organization = models.ForeignKey(organization, blank=True, on_delete=models.CASCADE, verbose_name='Организация документа')
     _budjet = models.ForeignKey(budjet, blank=True, on_delete=models.CASCADE, verbose_name='Бюджет документа')
     _type_izm_doc = models.ForeignKey(type_izm_doc, null=True, on_delete=models.CASCADE, verbose_name='Тип справки')
@@ -48,7 +48,7 @@ class izm_inc_tbl1(models.Model):
     _organization = models.ForeignKey(organization, null=True, on_delete=models.CASCADE, verbose_name='Организация документа')
     _budjet = models.ForeignKey(budjet, blank=True, null=True, on_delete=models.CASCADE, verbose_name='Бюджет документа')
     deleted = models.BooleanField(default=False, null=True)
-    _date = models.DateField(null=True)
+    _date = models.DateTimeField(null=True)
 
     # Утвержденные суммы
     utvgod = models.FloatField(null=True)
