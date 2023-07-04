@@ -4,8 +4,7 @@ from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import IsAuthenticated
 import json
 import base64
-from datetime import datetime, timedelta
-import calendar
+from datetime import datetime
 from django.db import connection
 from .models import *
 from .serializer import *
@@ -480,41 +479,44 @@ def utvexpsave(request):
     data = json.loads(datastr)
     doc_req = data['doc']
     payments = data['payments']
-    obligs = data['obligs']
+    obligs = data['obligats']
 
     try:
-        if doc_req['id'] == None:
-            date_object = datetime.strptime(doc_req['_date'], '%Y-%m-%d')
+        org = organization.objects.get(id=doc_req['_organization']['id'])
+        budjet_id = org._budjet.id
+        date_object = datetime.strptime(doc_req['_date'], '%d.%m.%Y %H:%M:%S')
+
+        if doc_req['id'] == 0:
             year = date_object.year
-            org = organization.objects.get(id=doc_req['_organization'])
-            doc_cnt = utv_exp.objects.filter(date__year = year).count()
+            doc_cnt = utv_exp.objects.filter(_date__year = year, _organization = org.id).count()
             itemdoc = utv_exp()
-            itemdoc._organization_id = doc_req['_organization']
-            itemdoc._budjet_id = org._budjet.id
-            itemdoc._date = doc_req['_date']
+            itemdoc._organization_id = org.id
+            itemdoc._budjet_id = budjet_id
+            itemdoc._date = date_object
             itemdoc.nom = str(doc_cnt + 1) + '-' + org.bin
             itemdoc.save()
         else:
-            org = organization.objects.get(id=doc_req['_organization'])
             itemdoc = utv_exp.objects.get(id = doc_req['id'])
-            itemdoc._organization_id = doc_req['_organization']
-            itemdoc._budjet_id = org._budjet.id
-            itemdoc._date = datetime.strptime(doc_req['_date'],"%d.%m.%Y")
-            # itemdoc.nom = str(doc_cnt + 1) + '-' + org.bin
+            itemdoc._organization_id = org.id
+            itemdoc._budjet_id = budjet_id
+            itemdoc._date = date_object
             itemdoc.save()
     except:
         return HttpResponse('{"status": "Ошибка в шапке документа"}', content_type="application/json", status = 400)
 
-    try:
-        mass_id_tbl = []
-        if doc_req['id'] == None:
+    if 1 == 1:
+        mass_id_paym = []
+        mass_id_oblig = []
+
+        if doc_req['id'] == 0:
             for itemtbl1 in payments:
                 newitemtbl1 = utv_exp_paym()
                 newitemtbl1._utv_exp_id = itemdoc.id
-                newitemtbl1._fkr_id = itemtbl1['_classification']
-                newitemtbl1._organization_id = doc_req['_organization']
-                newitemtbl1._date = doc_req['_date']
-                newitemtbl1.god = itemtbl1['god']
+                newitemtbl1._fkr_id = itemtbl1['_fkr']['id']
+                newitemtbl1._spec_id = itemtbl1['_spec']['id']
+                newitemtbl1._organization_id = org.id
+                newitemtbl1._date = date_object
+                # newitemtbl1.god = itemtbl1['god']
                 newitemtbl1.sm1 = itemtbl1['sm1']
                 newitemtbl1.sm2 = itemtbl1['sm2']
                 newitemtbl1.sm3 = itemtbl1['sm3']
@@ -528,19 +530,16 @@ def utvexpsave(request):
                 newitemtbl1.sm11 = itemtbl1['sm11']
                 newitemtbl1.sm12 = itemtbl1['sm12']
                 newitemtbl1.save()
-                mass_id_tbl.append(newitemtbl1.id)
-        else:
-            for itemtbl1 in obligs:
-                if itemtbl1['id'] == 0:
-                    newitemtbl1 = utv_inc_tbl1()
-                else:
-                    newitemtbl1 = utv_inc_tbl1.objects.get(id = itemtbl1['id'])
+                mass_id_paym.append(newitemtbl1.id)
 
-                newitemtbl1._utv_inc_id = itemdoc.id
-                newitemtbl1._classification_id = itemtbl1['_classification']
-                newitemtbl1._organization_id = doc_req['_organization']
-                newitemtbl1._date = datetime.strptime(doc_req['_date'],"%d.%m.%Y")
-                newitemtbl1.god = itemtbl1['god']
+            for itemtbl1 in obligs:
+                newitemtbl1 = utv_exp_oblig()
+                newitemtbl1._utv_exp_id = itemdoc.id
+                newitemtbl1._fkr_id = itemtbl1['_fkr']['id']
+                newitemtbl1._spec_id = itemtbl1['_spec']['id']
+                newitemtbl1._organization_id = org.id
+                newitemtbl1._date = date_object
+                # newitemtbl1.god = itemtbl1['god']
                 newitemtbl1.sm1 = itemtbl1['sm1']
                 newitemtbl1.sm2 = itemtbl1['sm2']
                 newitemtbl1.sm3 = itemtbl1['sm3']
@@ -554,29 +553,88 @@ def utvexpsave(request):
                 newitemtbl1.sm11 = itemtbl1['sm11']
                 newitemtbl1.sm12 = itemtbl1['sm12']
                 newitemtbl1.save()
-                mass_id_tbl.append(newitemtbl1.id)
+                mass_id_oblig.append(newitemtbl1.id)
+        else:
+            for itemtbl1 in payments:
+                try: newitemtbl1 = utv_exp_paym.objects.get(id = itemtbl1['id'])
+                except: newitemtbl1 = utv_exp_paym()
+                newitemtbl1._utv_exp_id = itemdoc.id
+                newitemtbl1._fkr_id = itemtbl1['_fkr']['id']
+                newitemtbl1._spec_id = itemtbl1['_spec']['id']
+                newitemtbl1._organization_id = org.id
+                newitemtbl1._date = date_object
+                # newitemtbl1.god = itemtbl1['god']
+                newitemtbl1.sm1 = itemtbl1['sm1']
+                newitemtbl1.sm2 = itemtbl1['sm2']
+                newitemtbl1.sm3 = itemtbl1['sm3']
+                newitemtbl1.sm4 = itemtbl1['sm4']
+                newitemtbl1.sm5 = itemtbl1['sm5']
+                newitemtbl1.sm6 = itemtbl1['sm6']
+                newitemtbl1.sm7 = itemtbl1['sm7']
+                newitemtbl1.sm8 = itemtbl1['sm8']
+                newitemtbl1.sm9 = itemtbl1['sm9']
+                newitemtbl1.sm10 = itemtbl1['sm10']
+                newitemtbl1.sm11 = itemtbl1['sm11']
+                newitemtbl1.sm12 = itemtbl1['sm12']
+                newitemtbl1.save()
+                mass_id_paym.append(newitemtbl1.id)
+
+            for itemtbl1 in obligs:
+                try: newitemtbl1 = utv_exp_oblig.objects.get(id = itemtbl1['id'])
+                except: newitemtbl1 = utv_exp_oblig()
+                newitemtbl1._utv_exp_id = itemdoc.id
+                newitemtbl1._fkr_id = itemtbl1['_fkr']['id']
+                newitemtbl1._spec_id = itemtbl1['_spec']['id']
+                newitemtbl1._organization_id = org.id
+                newitemtbl1._date = date_object
+                # newitemtbl1.god = itemtbl1['god']
+                newitemtbl1.sm1 = itemtbl1['sm1']
+                newitemtbl1.sm2 = itemtbl1['sm2']
+                newitemtbl1.sm3 = itemtbl1['sm3']
+                newitemtbl1.sm4 = itemtbl1['sm4']
+                newitemtbl1.sm5 = itemtbl1['sm5']
+                newitemtbl1.sm6 = itemtbl1['sm6']
+                newitemtbl1.sm7 = itemtbl1['sm7']
+                newitemtbl1.sm8 = itemtbl1['sm8']
+                newitemtbl1.sm9 = itemtbl1['sm9']
+                newitemtbl1.sm10 = itemtbl1['sm10']
+                newitemtbl1.sm11 = itemtbl1['sm11']
+                newitemtbl1.sm12 = itemtbl1['sm12']
+                newitemtbl1.save()
+                mass_id_oblig.append(newitemtbl1.id)
 
         #Удаляем удаленные с фронта элементы табл части документа
-        newitemtbl1 = utv_inc_tbl1.objects.filter(_utv_inc_id = itemdoc.id)
-        for itemtblbs in newitemtbl1:
-            if not itemtblbs.id in mass_id_tbl:
+        allitems = utv_exp_paym.objects.filter(_utv_exp_id = itemdoc.id)
+        for itemtblbs in allitems:
+            if not itemtblbs.id in mass_id_paym:
                 itemtblbs.delete()
 
-    except:
-        return HttpResponse('{"status": "Ошибка в табличной части документа"}', content_type="application/json", status = 400)
+        allitems = utv_exp_oblig.objects.filter(_utv_exp_id = itemdoc.id)
+        for itemtblbs in allitems:
+            if not itemtblbs.id in mass_id_paym:
+                itemtblbs.delete()
+
+    # except:
+    #     return HttpResponse('{"status": "Ошибка в табличной части документа"}', content_type="application/json", status = 400)
 
 
     # Документ сам (шапка документа)
-    queryset_doc = utv_inc.objects.get(id=itemdoc.id)
-    serialdoc = utv_inc_Serializer(queryset_doc)
+    queryset_doc = utv_exp.objects.get(id = itemdoc.id)
+    serialdoc = utv_exp_Serializer(queryset_doc)
 
-    # табличная часть
-    queryset_tbl1 = utv_inc_tbl1.objects.filter(_utv_inc_id=queryset_doc.id)
-    serial_tbl1 = utv_inc_tbl1_Serializer(queryset_tbl1, many = True)
+    # табличная часть платежи
+    queryset_paym = utv_exp_paym.objects.filter(_utv_exp_id=itemdoc.id)
+    serial_paym = utv_exp_paymentserial(queryset_paym, many = True)
+
+    # табличная часть платежи
+    queryset_oblig = utv_exp_oblig.objects.filter(_utv_exp_id=itemdoc.id)
+    serial_oblig = utv_exp_obligatserial(queryset_oblig, many = True)
 
     # Возвращаем шапку и табличную часть в одном объекте
     resp = {'doc': serialdoc.data,
-            'tbl1': serial_tbl1.data}
+            'payments': serial_paym.data,
+            'obligats': serial_oblig.data,
+            }
 
     return response.Response(resp)
 
@@ -614,8 +672,202 @@ def utvexpdelete(request, id):
 
 
 
+# ****************************************************************
+# ***Сервисы изменения плана по платежам***
+# ****************************************************************
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def izmexppaymlist(request):
+    queryset = izm_exp_paym.objects.order_by('nom')
+    paginator = CustomPagination()
+    paginated_queryset = paginator.paginate_queryset(queryset, request)
+    serial = izm_exp_paym_Serializer(paginated_queryset, many = True)
+    return paginator.get_paginated_response(serial.data)
 
 
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def izmexppaymitem(request, id):
+    # Документ сам (шапка документа)
+    queryset_doc = izm_exp_paym.objects.get(id=id)
+    serialdoc = izm_exp_paym_Serializer(queryset_doc)
+
+    # табличная часть платежи
+    queryset_paym = izm_exp_paym_tbl.objects.filter(_izm_exp_paym_id = queryset_doc.id)
+    serial_paym = izm_exp_paym_tbl_serial(queryset_paym, many = True)
+
+    # Возвращаем шапку и табличную часть в одном объекте
+    resp = {'doc': serialdoc.data,
+            'payments': serial_paym.data
+            }
+    return response.Response(resp)
+
+
+
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def izmexppaymsave(request):
+    datastr = request.body
+    data = json.loads(datastr)
+    doc_req = data['doc']
+    payments = data['payments']
+ 
+    try:
+        org = organization.objects.get(id=doc_req['_organization']['id'])
+        budjet_id = org._budjet.id
+        date_object = datetime.strptime(doc_req['_date'], '%d.%m.%Y %H:%M:%S')
+
+        if doc_req['id'] == 0:
+            year = date_object.year
+            doc_cnt = izm_exp_paym.objects.filter(_date__year = year, _organization = org.id).count()
+            itemdoc = izm_exp_paym()
+            itemdoc._organization_id = org.id
+            itemdoc._budjet_id = budjet_id
+            itemdoc._date = date_object
+            itemdoc.nom = str(doc_cnt + 1) + '-' + org.bin
+            itemdoc._type_izm_doc_id = doc_req['_type_izm_doc']['_type_izm_doc']
+            itemdoc.save()
+        else:
+            itemdoc = izm_exp_paym.objects.get(id = doc_req['id'])
+            itemdoc._organization_id = org.id
+            itemdoc._budjet_id = budjet_id
+            itemdoc._date = date_object
+            itemdoc._type_izm_doc_id = doc_req['_type_izm_doc']['_type_izm_doc']
+            itemdoc.save()
+    except:
+        return HttpResponse('{"status": "Ошибка в шапке документа"}', content_type="application/json", status = 400)
+
+
+
+    if 1 == 1:
+        mass_id_paym = []
+        if doc_req['id'] == 0:
+            for itemtbl1 in payments:
+                newitemtbl1 = izm_exp_paym_tbl()
+                newitemtbl1._izm_exp_paym_id = itemdoc.id
+                newitemtbl1._fkr_id = itemtbl1['_fkr']['id']
+                newitemtbl1._spec_id = itemtbl1['_spec']['id']
+                newitemtbl1._organization_id = org.id
+                newitemtbl1._date = date_object
+                # newitemtbl1.god = itemtbl1['god']
+
+                newitemtbl1.utv1 = itemtbl1['utv1']
+                newitemtbl1.utv2 = itemtbl1['utv2']
+                newitemtbl1.utv3 = itemtbl1['utv3']
+                newitemtbl1.utv4 = itemtbl1['utv4']
+                newitemtbl1.utv5 = itemtbl1['utv5']
+                newitemtbl1.utv6 = itemtbl1['utv6']
+                newitemtbl1.utv7 = itemtbl1['utv7']
+                newitemtbl1.utv8 = itemtbl1['utv8']
+                newitemtbl1.utv9 = itemtbl1['utv9']
+                newitemtbl1.utv10 = itemtbl1['utv10']
+                newitemtbl1.utv11 = itemtbl1['utv11']
+                newitemtbl1.utv12 = itemtbl1['utv12']
+
+                newitemtbl1.sm1 = itemtbl1['sm1']
+                newitemtbl1.sm2 = itemtbl1['sm2']
+                newitemtbl1.sm3 = itemtbl1['sm3']
+                newitemtbl1.sm4 = itemtbl1['sm4']
+                newitemtbl1.sm5 = itemtbl1['sm5']
+                newitemtbl1.sm6 = itemtbl1['sm6']
+                newitemtbl1.sm7 = itemtbl1['sm7']
+                newitemtbl1.sm8 = itemtbl1['sm8']
+                newitemtbl1.sm9 = itemtbl1['sm9']
+                newitemtbl1.sm10 = itemtbl1['sm10']
+                newitemtbl1.sm11 = itemtbl1['sm11']
+                newitemtbl1.sm12 = itemtbl1['sm12']
+                newitemtbl1.save()
+                mass_id_paym.append(newitemtbl1.id)
+        else:
+            for itemtbl1 in payments:
+                try: newitemtbl1 = izm_exp_paym_tbl.objects.get(id = itemtbl1['id'])
+                except: newitemtbl1 = izm_exp_paym_tbl()
+                newitemtbl1._izm_exp_paym_id = itemdoc.id
+                newitemtbl1._fkr_id = itemtbl1['_fkr']['id']
+                newitemtbl1._spec_id = itemtbl1['_spec']['id']
+                newitemtbl1._organization_id = org.id
+                newitemtbl1._date = date_object
+                # newitemtbl1.god = itemtbl1['god']
+
+                newitemtbl1.utv1 = itemtbl1['utv1']
+                newitemtbl1.utv2 = itemtbl1['utv2']
+                newitemtbl1.utv3 = itemtbl1['utv3']
+                newitemtbl1.utv4 = itemtbl1['utv4']
+                newitemtbl1.utv5 = itemtbl1['utv5']
+                newitemtbl1.utv6 = itemtbl1['utv6']
+                newitemtbl1.utv7 = itemtbl1['utv7']
+                newitemtbl1.utv8 = itemtbl1['utv8']
+                newitemtbl1.utv9 = itemtbl1['utv9']
+                newitemtbl1.utv10 = itemtbl1['utv10']
+                newitemtbl1.utv11 = itemtbl1['utv11']
+                newitemtbl1.utv12 = itemtbl1['utv12']
+
+                newitemtbl1.sm1 = itemtbl1['sm1']
+                newitemtbl1.sm2 = itemtbl1['sm2']
+                newitemtbl1.sm3 = itemtbl1['sm3']
+                newitemtbl1.sm4 = itemtbl1['sm4']
+                newitemtbl1.sm5 = itemtbl1['sm5']
+                newitemtbl1.sm6 = itemtbl1['sm6']
+                newitemtbl1.sm7 = itemtbl1['sm7']
+                newitemtbl1.sm8 = itemtbl1['sm8']
+                newitemtbl1.sm9 = itemtbl1['sm9']
+                newitemtbl1.sm10 = itemtbl1['sm10']
+                newitemtbl1.sm11 = itemtbl1['sm11']
+                newitemtbl1.sm12 = itemtbl1['sm12']
+                newitemtbl1.save()
+                mass_id_paym.append(newitemtbl1.id)
+
+
+        #Удаляем удаленные с фронта элементы табл части документа
+        allitems = izm_exp_paym_tbl.objects.filter(_izm_exp_paym_id = itemdoc.id)
+        for itemtblbs in allitems:
+            if not itemtblbs.id in mass_id_paym:
+                itemtblbs.delete()
+
+    # except:
+    #     return HttpResponse('{"status": "Ошибка в табличной части документа"}', content_type="application/json", status = 400)
+
+
+    # Документ сам (шапка документа)
+    queryset_doc = izm_exp_paym.objects.get(id = itemdoc.id)
+    serialdoc = izm_exp_paym_Serializer(queryset_doc)
+
+    # табличная часть платежи
+    queryset_paym = izm_exp_paym_tbl.objects.filter(_izm_exp_paym_id=itemdoc.id)
+    serial_paym = izm_exp_paym_tbl_serial(queryset_paym, many = True)
+
+    # Возвращаем шапку и табличную часть в одном объекте
+    resp = {'doc': serialdoc.data,
+            'payments': serial_paym.data
+            }
+
+    return response.Response(resp)
+
+
+
+@api_view(['DELETE'])
+@permission_classes([IsAuthenticated])
+def izmexppaymdelete(request, id):
+    try:
+        docobj = izm_exp_paym.objects.get(id = id)
+        docobj.deleted = not docobj.deleted
+        docobj.save()
+
+        # табличная часть
+        payms = izm_exp_paym_tbl.objects.filter(_izm_exp_paym_id=docobj.id)
+        for itmtbl1 in payms:
+            itmtbl1.deleted = docobj.deleted
+            itmtbl1.save()
+
+    except:
+        return HttpResponse('{"status": "Ошибка удаления документа"}', content_type="application/json", status = 400)
+
+    queryset = izm_exp_paym.objects.order_by('nom')
+    paginator = CustomPagination()
+    paginated_queryset = paginator.paginate_queryset(queryset, request)
+    serial = izm_exp_paym_Serializer(paginated_queryset, many = True)
+    return paginator.get_paginated_response(serial.data)
 
 
 

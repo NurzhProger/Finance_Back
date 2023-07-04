@@ -156,6 +156,146 @@ class utv_exp_oblig(models.Model):
 
 
 
+# Изменение плана расхода по платежам
+class izm_exp_paym(models.Model):
+    nom = models.TextField(null=True)
+    _date = models.DateTimeField(null=True)
+    _organization = models.ForeignKey(organization, blank=True, on_delete=models.CASCADE, verbose_name='Организация документа')
+    _budjet = models.ForeignKey(budjet, blank=True, on_delete=models.CASCADE, verbose_name='Бюджет документа')
+    _type_izm_doc = models.ForeignKey(type_izm_doc, null=True, on_delete=models.CASCADE, verbose_name='Тип справки')
+    deleted = models.BooleanField(default=False, null=True)
+
+
+
+
+
+
+
+# ТЧ изменения плана по платежам
+class izm_exp_paym_tbl(models.Model):
+    _izm_exp_paym = models.ForeignKey(izm_exp_paym, blank=True, on_delete=models.CASCADE, verbose_name='ИД документа')
+    _fkr = models.ForeignKey(fkr, blank=True, on_delete=models.CASCADE, verbose_name='ФКР')
+    _spec = models.ForeignKey(spec_exp, blank=True, on_delete=models.CASCADE, verbose_name='Специфика')
+    _organization = models.ForeignKey(organization, null=True, on_delete=models.CASCADE, verbose_name='Организация документа')
+    _budjet = models.ForeignKey(budjet, blank=True, null=True, on_delete=models.CASCADE, verbose_name='Бюджет документа')
+    deleted = models.BooleanField(default=False, null=True)
+    _date = models.DateTimeField(null=True)
+
+    # Утвержденные суммы
+    utvgod = models.FloatField(null=True, default=0)
+    utv1 = models.FloatField(null=True, default=0)
+    utv2 = models.FloatField(null=True, default=0)
+    utv3 = models.FloatField(null=True, default=0)
+    utv4 = models.FloatField(null=True, default=0)
+    utv5 = models.FloatField(null=True, default=0)
+    utv6 = models.FloatField(null=True, default=0)
+    utv7 = models.FloatField(null=True, default=0)
+    utv8 = models.FloatField(null=True, default=0)
+    utv9 = models.FloatField(null=True, default=0)
+    utv10 = models.FloatField(null=True, default=0)
+    utv11 = models.FloatField(null=True, default=0)
+    utv12 = models.FloatField(null=True, default=0)
+
+    # Суммы изменении
+    god = models.FloatField(null=True, default=0)
+    sm1 = models.FloatField(null=True, default=0)
+    sm2 = models.FloatField(null=True, default=0)
+    sm3 = models.FloatField(null=True, default=0)
+    sm4 = models.FloatField(null=True, default=0)
+    sm5 = models.FloatField(null=True, default=0)
+    sm6 = models.FloatField(null=True, default=0)
+    sm7 = models.FloatField(null=True, default=0)
+    sm8 = models.FloatField(null=True, default=0)
+    sm9 = models.FloatField(null=True, default=0)
+    sm10 = models.FloatField(null=True, default=0)
+    sm11 = models.FloatField(null=True, default=0)
+    sm12 = models.FloatField(null=True, default=0)
+
+    # Суммы итогов
+    itoggod = models.FloatField(null=True, default=0)
+    itog1 = models.FloatField(null=True, default=0)
+    itog2 = models.FloatField(null=True, default=0)
+    itog3 = models.FloatField(null=True, default=0)
+    itog4 = models.FloatField(null=True, default=0)
+    itog5 = models.FloatField(null=True, default=0)
+    itog6 = models.FloatField(null=True, default=0)
+    itog7 = models.FloatField(null=True, default=0)
+    itog8 = models.FloatField(null=True, default=0)
+    itog9 = models.FloatField(null=True, default=0)
+    itog10 = models.FloatField(null=True, default=0)
+    itog11 = models.FloatField(null=True, default=0)
+    itog12 = models.FloatField(null=True, default=0)
+
+
+
+
+
+
+# Изменение плана расхода по обязательствам
+class izm_exp_oblig(models.Model):
+    nom = models.TextField(null=True)
+    _date = models.DateTimeField(null=True)
+    _organization = models.ForeignKey(organization, blank=True, on_delete=models.CASCADE, verbose_name='Организация документа')
+    _budjet = models.ForeignKey(budjet, blank=True, on_delete=models.CASCADE, verbose_name='Бюджет документа')
+    _type_izm_doc = models.ForeignKey(type_izm_doc, null=True, on_delete=models.CASCADE, verbose_name='Тип справки')
+    deleted = models.BooleanField(default=False, null=True)
+
+
+# ТЧ изменения плана по обязательствам
+class izm_exp_oblig_tbl(models.Model):
+    _izm_exp_oblig = models.ForeignKey(izm_exp_oblig, blank=True, on_delete=models.CASCADE, verbose_name='ИД документа')
+    _fkr = models.ForeignKey(fkr, blank=True, on_delete=models.CASCADE, verbose_name='ФКР')
+    _spec = models.ForeignKey(spec_exp, blank=True, on_delete=models.CASCADE, verbose_name='Специфика')
+    _organization = models.ForeignKey(organization, null=True, on_delete=models.CASCADE, verbose_name='Организация документа')
+    _budjet = models.ForeignKey(budjet, blank=True, null=True, on_delete=models.CASCADE, verbose_name='Бюджет документа')
+    deleted = models.BooleanField(default=False, null=True)
+    _date = models.DateTimeField(null=True)
+
+    # Утвержденные суммы
+    utvgod = models.FloatField(null=True, default=0)
+    utv1 = models.FloatField(null=True, default=0)
+    utv2 = models.FloatField(null=True, default=0)
+    utv3 = models.FloatField(null=True, default=0)
+    utv4 = models.FloatField(null=True, default=0)
+    utv5 = models.FloatField(null=True, default=0)
+    utv6 = models.FloatField(null=True, default=0)
+    utv7 = models.FloatField(null=True, default=0)
+    utv8 = models.FloatField(null=True, default=0)
+    utv9 = models.FloatField(null=True, default=0)
+    utv10 = models.FloatField(null=True, default=0)
+    utv11 = models.FloatField(null=True, default=0)
+    utv12 = models.FloatField(null=True, default=0)
+
+    # Суммы изменении
+    god = models.FloatField(null=True, default=0)
+    sm1 = models.FloatField(null=True, default=0)
+    sm2 = models.FloatField(null=True, default=0)
+    sm3 = models.FloatField(null=True, default=0)
+    sm4 = models.FloatField(null=True, default=0)
+    sm5 = models.FloatField(null=True, default=0)
+    sm6 = models.FloatField(null=True, default=0)
+    sm7 = models.FloatField(null=True, default=0)
+    sm8 = models.FloatField(null=True, default=0)
+    sm9 = models.FloatField(null=True, default=0)
+    sm10 = models.FloatField(null=True, default=0)
+    sm11 = models.FloatField(null=True, default=0)
+    sm12 = models.FloatField(null=True, default=0)
+
+    # Суммы итогов
+    itoggod = models.FloatField(null=True, default=0)
+    itog1 = models.FloatField(null=True, default=0)
+    itog2 = models.FloatField(null=True, default=0)
+    itog3 = models.FloatField(null=True, default=0)
+    itog4 = models.FloatField(null=True, default=0)
+    itog5 = models.FloatField(null=True, default=0)
+    itog6 = models.FloatField(null=True, default=0)
+    itog7 = models.FloatField(null=True, default=0)
+    itog8 = models.FloatField(null=True, default=0)
+    itog9 = models.FloatField(null=True, default=0)
+    itog10 = models.FloatField(null=True, default=0)
+    itog11 = models.FloatField(null=True, default=0)
+    itog12 = models.FloatField(null=True, default=0)
+
 
 
 

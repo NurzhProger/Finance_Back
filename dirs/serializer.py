@@ -1,9 +1,25 @@
 from rest_framework import serializers
 from .models import *
 
+
 class shareSerializer(serializers.ModelSerializer):
     class Meta:
         model = category_income
+        fields = '__all__'
+
+class fkrSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = fkr
+        fields = '__all__'
+
+class fkrMinSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = fkr
+        fields = ['id', 'code', 'name_rus']
+
+class specexpSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = spec_exp
         fields = '__all__'
 
 class typedocSerializer(serializers.ModelSerializer):
@@ -14,11 +30,23 @@ class typedocSerializer(serializers.ModelSerializer):
         fields = ('_type_izm_doc', 'type_izm_name')
 
         
+class budjetSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = budjet
+        fields = '__all__'
+
+
 class organizationSerializer(serializers.ModelSerializer):
-    budjet_name = serializers.CharField(source = '_budjet.name_rus')
+    _budjet = budjetSerializer()
     class Meta:
         model = organization
         fields = '__all__'
+
+class organizationMinSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = organization
+        fields = ['id', 'name_rus']
+
 
 
 class classificatinIncSerializer(serializers.ModelSerializer):
