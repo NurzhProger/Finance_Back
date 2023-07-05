@@ -55,19 +55,32 @@ class classificatinIncSerializer(serializers.ModelSerializer):
         fields = ('id', 'name_kaz', 'name_rus', 'code')
     
 
+class categoryIncSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = category_income
+        fields = '__all__'
+
+class classIncSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = class_income
+        fields = '__all__'
+
+class podclassIncSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = podclass_income
+        fields = '__all__'
+
+class specIncSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = spec_income
+        fields = '__all__'
+
 class classificatinIncDetailSerializer(serializers.ModelSerializer):
-    category_code = serializers.CharField(source = '_category.code')
-    category_name = serializers.CharField(source = '_category.name_rus')
-    classs_code = serializers.CharField(source = '_classs.code')
-    classs_name = serializers.CharField(source = '_classs.name_rus')
-    podclass_code = serializers.CharField(source = '_podclass.code')
-    podclass_name = serializers.CharField(source = '_podclass.name_rus')
-    spec_code = serializers.CharField(source = '_spec.code')
-    spec_name = serializers.CharField(source = '_spec.name_rus')
+    _category = categoryIncSerializer()
+    _classs = classIncSerializer()
+    _podclass = podclassIncSerializer()
+    _spec = specIncSerializer()
+    
     class Meta:
         model = classification_income
-        fields = ('id', 'name_kaz', 'name_rus', 'code', 
-        '_category_id', 'category_code','category_name', 
-        '_classs_id', 'classs_code','classs_name', 
-        '_podclass_id', 'podclass_code','podclass_name',  
-        '_spec_id', 'spec_code','spec_name')
+        fields = '__all__'

@@ -55,7 +55,7 @@ def organizationsave(request):
     new.name_kaz = name_kaz
     new.name_rus = name_rus
     new.adress = adress
-    new._budjet_id = _budjet
+    new._budjet_id = _budjet['id']
     new.save()
 
     queryset = organization.objects.all()
