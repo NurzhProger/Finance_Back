@@ -23,10 +23,11 @@ urlpatterns = [
     path('utvexpdelete/<int:id>', views.utvexpdelete, name='index'),
 
 
-    path('izmexppaymlist', views.izmexppaymlist, name='index'),
-    path('izmexppaymitem/<int:id>', views.izmexppaymitem, name='index'),
-    path('izmexppaymsave', views.izmexppaymsave, name='index'),
-    path('izmexppaymdelete/<int:id>', views.izmexppaymdelete, name='index'),
+    path('izmexplist', views.izmexplist, name='index'),
+    path('izmexpitem/<int:id_doc>', views.izmexpitem, name='index'),
+    path('izmexpsave', views.izmexpsave, name='index'),
+    path('izmexpdelete/<int:id>', views.izmexpdelete, name='index'),
+    path('expgetplanbyclassif', views.expgetplanbyclassif, name='index'),
 
     path('import219', views.import219, name='index'), 
 ]

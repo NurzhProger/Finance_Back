@@ -1,10 +1,11 @@
 from django.db import models
 from dirs.models import *
 
+
 # Утвержденный план по поступлениям
 class utv_inc(models.Model):
     nom = models.TextField(null=True)
-    _date = models.DateField(null=True)
+    _date = models.DateTimeField(null=True)
     _organization = models.ForeignKey(organization, blank=True, on_delete=models.CASCADE, verbose_name='Организация документа')
     _budjet = models.ForeignKey(budjet, blank=True, on_delete=models.CASCADE, verbose_name='Бюджет документа')
     deleted = models.BooleanField(default=False, null=True)
@@ -29,7 +30,7 @@ class utv_inc_tbl1(models.Model):
     sm10 = models.FloatField(null=True)
     sm11 = models.FloatField(null=True)
     sm12 = models.FloatField(null=True)
-    _date = models.DateField(null=True)
+    _date = models.DateTimeField(null=True)
 
 
 # Изменение плана по поступлениям
@@ -101,19 +102,20 @@ class izm_inc_tbl1(models.Model):
 # Утвержденный план по расходам
 class utv_exp(models.Model):
     nom = models.TextField(null=True)
-    _date = models.DateField(null=True)
+    _date = models.DateTimeField(null=True)
     _organization = models.ForeignKey(organization, blank=True, on_delete=models.CASCADE, verbose_name='Организация документа')
     _budjet = models.ForeignKey(budjet, blank=True, on_delete=models.CASCADE, verbose_name='Бюджет документа')
     deleted = models.BooleanField(default=False, null=True)
-   
+
+
 
 # ТЧ платежи утвержденного плана по расходам
-class utv_exp_paym(models.Model):
+class utv_exp_pay(models.Model):
     _utv_exp = models.ForeignKey(utv_exp, blank=True, on_delete=models.CASCADE, verbose_name='ИД документа')
     _fkr = models.ForeignKey(fkr, blank=True, on_delete=models.CASCADE, verbose_name='ФКР')
     _spec = models.ForeignKey(spec_exp, blank=True, on_delete=models.CASCADE, verbose_name='Специфика')
     _organization = models.ForeignKey(organization, null=True, on_delete=models.CASCADE, verbose_name='Организация документа')
-    _date = models.DateField(null=True)
+    _date = models.DateTimeField(null=True)
     deleted = models.BooleanField(default=False, null=True)
     god = models.FloatField(null=True)
     sm1 = models.FloatField(null=True)
@@ -132,12 +134,12 @@ class utv_exp_paym(models.Model):
 
 
 # ТЧ обязательства утвержденного плана по расходам
-class utv_exp_oblig(models.Model):
+class utv_exp_obl(models.Model):
     _utv_exp = models.ForeignKey(utv_exp, blank=True, on_delete=models.CASCADE, verbose_name='ИД документа')
     _fkr = models.ForeignKey(fkr, blank=True, on_delete=models.CASCADE, verbose_name='ФКР')
     _spec = models.ForeignKey(spec_exp, blank=True, on_delete=models.CASCADE, verbose_name='Специфика')
     _organization = models.ForeignKey(organization, null=True, on_delete=models.CASCADE, verbose_name='Организация документа')
-    _date = models.DateField(null=True)
+    _date = models.DateTimeField(null=True)
     deleted = models.BooleanField(default=False, null=True)
     god = models.FloatField(null=True)
     sm1 = models.FloatField(null=True)
@@ -157,23 +159,20 @@ class utv_exp_oblig(models.Model):
 
 
 # Изменение плана расхода по платежам
-class izm_exp_paym(models.Model):
+class izm_exp(models.Model):
     nom = models.TextField(null=True)
     _date = models.DateTimeField(null=True)
     _organization = models.ForeignKey(organization, blank=True, on_delete=models.CASCADE, verbose_name='Организация документа')
     _budjet = models.ForeignKey(budjet, blank=True, on_delete=models.CASCADE, verbose_name='Бюджет документа')
     _type_izm_doc = models.ForeignKey(type_izm_doc, null=True, on_delete=models.CASCADE, verbose_name='Тип справки')
     deleted = models.BooleanField(default=False, null=True)
-
-
-
-
+    doc_hash = models.TextField(null=True)
 
 
 
 # ТЧ изменения плана по платежам
-class izm_exp_paym_tbl(models.Model):
-    _izm_exp_paym = models.ForeignKey(izm_exp_paym, blank=True, on_delete=models.CASCADE, verbose_name='ИД документа')
+class izm_exp_pay(models.Model):
+    _izm_exp = models.ForeignKey(izm_exp, blank=True, on_delete=models.CASCADE, verbose_name='ИД документа')
     _fkr = models.ForeignKey(fkr, blank=True, on_delete=models.CASCADE, verbose_name='ФКР')
     _spec = models.ForeignKey(spec_exp, blank=True, on_delete=models.CASCADE, verbose_name='Специфика')
     _organization = models.ForeignKey(organization, null=True, on_delete=models.CASCADE, verbose_name='Организация документа')
@@ -227,23 +226,37 @@ class izm_exp_paym_tbl(models.Model):
     itog12 = models.FloatField(null=True, default=0)
 
 
-
-
-
-
-# Изменение плана расхода по обязательствам
-class izm_exp_oblig(models.Model):
-    nom = models.TextField(null=True)
+# Регистр плана по платежам
+class reg_exp_pay(models.Model):
+    _utv_exp = models.ForeignKey(utv_exp, blank=True, null=True, on_delete=models.CASCADE, verbose_name='ИД документа')
+    _izm_exp = models.ForeignKey(izm_exp, blank=True, null=True, on_delete=models.CASCADE, verbose_name='ИД документа')
+    _fkr = models.ForeignKey(fkr, blank=True, on_delete=models.CASCADE, verbose_name='ФКР')
+    _spec = models.ForeignKey(spec_exp, blank=True, on_delete=models.CASCADE, verbose_name='Специфика')
+    _organization = models.ForeignKey(organization, null=True, on_delete=models.CASCADE, verbose_name='Организация документа')
+    _budjet = models.ForeignKey(budjet, blank=True, null=True, on_delete=models.CASCADE, verbose_name='Бюджет документа')
     _date = models.DateTimeField(null=True)
-    _organization = models.ForeignKey(organization, blank=True, on_delete=models.CASCADE, verbose_name='Организация документа')
-    _budjet = models.ForeignKey(budjet, blank=True, on_delete=models.CASCADE, verbose_name='Бюджет документа')
-    _type_izm_doc = models.ForeignKey(type_izm_doc, null=True, on_delete=models.CASCADE, verbose_name='Тип справки')
-    deleted = models.BooleanField(default=False, null=True)
+
+    # Суммы изменении
+    god = models.FloatField(null=True, default=0)
+    sm1 = models.FloatField(null=True, default=0)
+    sm2 = models.FloatField(null=True, default=0)
+    sm3 = models.FloatField(null=True, default=0)
+    sm4 = models.FloatField(null=True, default=0)
+    sm5 = models.FloatField(null=True, default=0)
+    sm6 = models.FloatField(null=True, default=0)
+    sm7 = models.FloatField(null=True, default=0)
+    sm8 = models.FloatField(null=True, default=0)
+    sm9 = models.FloatField(null=True, default=0)
+    sm10 = models.FloatField(null=True, default=0)
+    sm11 = models.FloatField(null=True, default=0)
+    sm12 = models.FloatField(null=True, default=0)
+
+
 
 
 # ТЧ изменения плана по обязательствам
-class izm_exp_oblig_tbl(models.Model):
-    _izm_exp_oblig = models.ForeignKey(izm_exp_oblig, blank=True, on_delete=models.CASCADE, verbose_name='ИД документа')
+class izm_exp_obl(models.Model):
+    _izm_exp = models.ForeignKey(izm_exp, blank=True, on_delete=models.CASCADE, verbose_name='ИД документа')
     _fkr = models.ForeignKey(fkr, blank=True, on_delete=models.CASCADE, verbose_name='ФКР')
     _spec = models.ForeignKey(spec_exp, blank=True, on_delete=models.CASCADE, verbose_name='Специфика')
     _organization = models.ForeignKey(organization, null=True, on_delete=models.CASCADE, verbose_name='Организация документа')
@@ -298,27 +311,30 @@ class izm_exp_oblig_tbl(models.Model):
 
 
 
+# Регистр плана по обязательствам
+class reg_exp_obl(models.Model):
+    _utv_exp = models.ForeignKey(utv_exp, blank=True, null=True, on_delete=models.CASCADE, verbose_name='ИД документа')
+    _izm_exp = models.ForeignKey(izm_exp, blank=True, null=True, on_delete=models.CASCADE, verbose_name='ИД документа')
+    _fkr = models.ForeignKey(fkr, blank=True, on_delete=models.CASCADE, verbose_name='ФКР')
+    _spec = models.ForeignKey(spec_exp, blank=True, on_delete=models.CASCADE, verbose_name='Специфика')
+    _organization = models.ForeignKey(organization, null=True, on_delete=models.CASCADE, verbose_name='Организация документа')
+    _budjet = models.ForeignKey(budjet, blank=True, null=True, on_delete=models.CASCADE, verbose_name='Бюджет документа')
+    _date = models.DateTimeField(null=True)
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+    # Суммы изменении
+    god = models.FloatField(null=True, default=0)
+    sm1 = models.FloatField(null=True, default=0)
+    sm2 = models.FloatField(null=True, default=0)
+    sm3 = models.FloatField(null=True, default=0)
+    sm4 = models.FloatField(null=True, default=0)
+    sm5 = models.FloatField(null=True, default=0)
+    sm6 = models.FloatField(null=True, default=0)
+    sm7 = models.FloatField(null=True, default=0)
+    sm8 = models.FloatField(null=True, default=0)
+    sm9 = models.FloatField(null=True, default=0)
+    sm10 = models.FloatField(null=True, default=0)
+    sm11 = models.FloatField(null=True, default=0)
+    sm12 = models.FloatField(null=True, default=0)
 
 
 

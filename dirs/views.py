@@ -623,12 +623,9 @@ def classificationincdelete(request, id):
 @permission_classes([IsAuthenticated])
 def typeincdoclist(request):
     queryset = type_izm_doc.objects.all()
-    # paginator = CustomPagination()
-    # paginated_queryset = paginator.paginate_queryset(queryset, request)
     serial = typedocSerializer(queryset, many=True)
-    # return paginator.get_paginated_response(serial.data)
     return response.Response(serial.data)
-    # return HttpResponse(serial.data, content_type="application/json", status = 200)
+
 
 
 # ****************************************************************

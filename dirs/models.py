@@ -1,4 +1,27 @@
 from django.db import models
+from django.contrib.auth.models import User
+
+
+class budjet(models.Model):
+    code = models.TextField(null=True)
+    name_kaz = models.TextField(null=True)
+    name_rus = models.TextField(null=True)
+    adress = models.TextField(null=True)
+    
+
+class organization(models.Model):
+    bin = models.TextField(null=True)
+    codeorg = models.TextField(null=True)
+    name_kaz = models.TextField(null=True)
+    name_rus = models.TextField(null=True)
+    adress = models.TextField(null=True)
+    _budjet = models.ForeignKey(budjet, blank=True, on_delete=models.CASCADE, verbose_name='Бюджет региона')
+    deleted = models.BooleanField(default=False, null=True)
+
+
+class profile(models.Model):
+    _user = models.OneToOneField(User, on_delete=models.CASCADE)
+    _organization = models.ForeignKey(organization, blank=True, null=True, on_delete=models.CASCADE, verbose_name='Текущая организация')
 
 
 class category_income(models.Model):
@@ -39,26 +62,13 @@ class classification_income(models.Model):
     _spec = models.ForeignKey(spec_income, blank=True, null=True, on_delete=models.CASCADE, verbose_name='Специфика')
 
 
-class budjet(models.Model):
-    code = models.TextField(null=True)
-    name_kaz = models.TextField(null=True)
-    name_rus = models.TextField(null=True)
-    adress = models.TextField(null=True)
-
 
 class type_izm_doc(models.Model):
     name_kaz = models.TextField(null=True)
     name_rus = models.TextField(null=True)
 
 
-class organization(models.Model):
-    bin = models.TextField(null=True)
-    name_kaz = models.TextField(null=True)
-    name_rus = models.TextField(null=True)
-    adress = models.TextField(null=True)
-    _budjet = models.ForeignKey(budjet, blank=True, on_delete=models.CASCADE, verbose_name='Бюджет региона')
-    deleted = models.BooleanField(default=False, null=True)
-    # _region = models.ForeignKey(budjet, blank=True, on_delete=models.CASCADE, verbose_name='Расположение организации')
+
 
 
 

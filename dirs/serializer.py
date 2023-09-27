@@ -7,10 +7,11 @@ class shareSerializer(serializers.ModelSerializer):
         model = category_income
         fields = '__all__'
 
-class fkrSerializer(serializers.ModelSerializer):
+class abpSerializer(serializers.ModelSerializer):
     class Meta:
-        model = fkr
+        model = abp
         fields = '__all__'
+
 
 class fkrMinSerializer(serializers.ModelSerializer):
     class Meta:
@@ -23,11 +24,11 @@ class specexpSerializer(serializers.ModelSerializer):
         fields = '__all__'
 
 class typedocSerializer(serializers.ModelSerializer):
-    _type_izm_doc = serializers.IntegerField(source = 'id')
-    type_izm_name = serializers.CharField(source = 'name_rus')
+    # _type_izm_doc = serializers.IntegerField(source = 'id')
+    # type_izm_name = serializers.CharField(source = 'name_rus')
     class Meta:
         model = type_izm_doc
-        fields = ('_type_izm_doc', 'type_izm_name')
+        fields = '__all__'
 
         
 class budjetSerializer(serializers.ModelSerializer):

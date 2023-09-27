@@ -6,11 +6,7 @@ import tabula
 import os
 
 
-def getincplanbyclassif(organization, date = None, classification = ''):
-    usl = ""
-    if not (classification == None or classification == ''):
-        usl = usl + " and _classification_id=" + str(classification)
-
+def getincplanbyclassif(organization, date = None, _classification_id=0):
     if date == None:
         date = datetime.now()
 
@@ -19,17 +15,17 @@ def getincplanbyclassif(organization, date = None, classification = ''):
 
     query = f"""with utv as (SELECT _classification_id, sum(sm1) as sm1, sum(sm2) as sm2, sum(sm3) as sm3, sum(sm4) as sm4, sum(sm5) as sm5, sum(sm6) as sm6, sum(sm7) as sm7, sum(sm8) as sm8, sum(sm9) as sm9, sum(sm10) as sm10, sum(sm11) as sm11, sum(sm12) as sm12 
                                 FROM public.docs_utv_inc_tbl1
-                                where _organization_id = {organization} and not deleted {usl} and _date>='{date_start}' and _date <= '{dateend}' 
+                                where _organization_id = {organization} and not deleted and _classification_id={_classification_id}  and _date>='{date_start}' and _date <= '{dateend}' 
                                 group by _classification_id),
                         izm as (SELECT _classification_id,  sum(sm1) as sm1, sum(sm2) as sm2, sum(sm3) as sm3, sum(sm4) as sm4, sum(sm5) as sm5, sum(sm6) as sm6, sum(sm7) as sm7, sum(sm8) as sm8, sum(sm9) as sm9, sum(sm10) as sm10, sum(sm11) as sm11, sum(sm12) as sm12 
                                 FROM public.docs_izm_inc_tbl1
-                                where _organization_id = {organization} and not deleted {usl} and _date>='{date_start}' and _date <= '{dateend}'
+                                where _organization_id = {organization} and not deleted and _classification_id={_classification_id} and _date>='{date_start}' and _date <= '{dateend}'
                                 group by _classification_id),
                         union_utv_izm as (select * from utv
                                             union all
                                             select * from izm),
                         classname as (SELECT * FROM public.dirs_classification_income
-                                     WHERE id in ({classification}))
+                                     WHERE id = ({_classification_id}))
                     SELECT classname.id as _classification, classname.code as classification_code, classname.name_rus as classification_name,  
                     COALESCE(sum(sm1),0) as utv1, 
                     COALESCE(sum(sm2),0) as utv2,
@@ -57,6 +53,7 @@ def getincplanbyclassif(organization, date = None, classification = ''):
         result = [dict(zip(columns, row))
                 for row in cursor.fetchall()]
     return result
+
 
 
 def pdftotext(filename):
