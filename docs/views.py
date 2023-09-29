@@ -91,8 +91,7 @@ def utvincsave(request):
         with transaction.atomic():
             if doc_req['id'] == None or doc_req['id'] == 0:
                 year = date_object.year
-                doc_cnt = utv_inc.objects.filter(
-                    _date__year=year, _organization_id=org.id).count()
+                doc_cnt = utv_inc.objects.filter(_date__year=year, _organization_id=org.id).count()
                 itemdoc = utv_inc()
                 itemdoc.nom = str(doc_cnt + 1) + '-' + org.bin
             else:
@@ -103,62 +102,51 @@ def utvincsave(request):
             itemdoc._date = date_object
             itemdoc.save()
 
-            mass_id_tbl = []
-            if doc_req['id'] == None:
-                for itemtbl1 in tbl1_req:
-                    newitemtbl1 = utv_inc_tbl1()
-                    newitemtbl1._utv_inc_id = itemdoc.id
-                    newitemtbl1._classification_id = itemtbl1['_classification']['id']
-                    newitemtbl1._organization_id = doc_req['_organization']['id']
-                    newitemtbl1._date = date_object.date()
-                    newitemtbl1.god = itemtbl1['god']
-                    newitemtbl1.sm1 = itemtbl1['sm1']
-                    newitemtbl1.sm2 = itemtbl1['sm2']
-                    newitemtbl1.sm3 = itemtbl1['sm3']
-                    newitemtbl1.sm4 = itemtbl1['sm4']
-                    newitemtbl1.sm5 = itemtbl1['sm5']
-                    newitemtbl1.sm6 = itemtbl1['sm6']
-                    newitemtbl1.sm7 = itemtbl1['sm7']
-                    newitemtbl1.sm8 = itemtbl1['sm8']
-                    newitemtbl1.sm9 = itemtbl1['sm9']
-                    newitemtbl1.sm10 = itemtbl1['sm10']
-                    newitemtbl1.sm11 = itemtbl1['sm11']
-                    newitemtbl1.sm12 = itemtbl1['sm12']
-                    newitemtbl1.save()
-                    mass_id_tbl.append(newitemtbl1.id)
-            else:
-                for itemtbl1 in tbl1_req:
-                    if itemtbl1['id'] == 0:
-                        newitemtbl1 = utv_inc_tbl1()
-                    else:
-                        newitemtbl1 = utv_inc_tbl1.objects.get(
-                            id=itemtbl1['id'])
+            
+            #Очищаем предыдущие записи табличной части
+            del_pay_obl = f"""DELETE FROM docs_utv_inc_tbl1 WHERE _utv_inc_id = {itemdoc.id};
+                              DELETE FROM docs_reg_inc WHERE _utv_inc_id = {itemdoc.id};"""
+            with connection.cursor() as cursor:
+                cursor.execute(del_pay_obl)
 
-                    newitemtbl1._utv_inc_id = itemdoc.id
-                    newitemtbl1._classification_id = itemtbl1['_classification']['id']
-                    newitemtbl1._organization_id = doc_req['_organization']['id']
-                    newitemtbl1._date = date_object.date()
-                    newitemtbl1.god = itemtbl1['god']
-                    newitemtbl1.sm1 = itemtbl1['sm1']
-                    newitemtbl1.sm2 = itemtbl1['sm2']
-                    newitemtbl1.sm3 = itemtbl1['sm3']
-                    newitemtbl1.sm4 = itemtbl1['sm4']
-                    newitemtbl1.sm5 = itemtbl1['sm5']
-                    newitemtbl1.sm6 = itemtbl1['sm6']
-                    newitemtbl1.sm7 = itemtbl1['sm7']
-                    newitemtbl1.sm8 = itemtbl1['sm8']
-                    newitemtbl1.sm9 = itemtbl1['sm9']
-                    newitemtbl1.sm10 = itemtbl1['sm10']
-                    newitemtbl1.sm11 = itemtbl1['sm11']
-                    newitemtbl1.sm12 = itemtbl1['sm12']
-                    newitemtbl1.save()
-                    mass_id_tbl.append(newitemtbl1.id)
 
-            # Удаляем удаленные с фронта элементы табл части документа
-            newitemtbl1 = utv_inc_tbl1.objects.filter(_utv_inc_id=itemdoc.id)
-            for itemtblbs in newitemtbl1:
-                if not itemtblbs.id in mass_id_tbl:
-                    itemtblbs.delete()
+            rows_save_tbl = []
+            rows_save_reg = []
+            
+            for itemtbl1 in tbl1_req:
+                newitemtbl1 = utv_inc_tbl1()
+                newitemtbl1._utv_inc_id = itemdoc.id
+                newitemtbl1._classification_id = itemtbl1['_classification']['id']
+                newitemtbl1._organization_id = doc_req['_organization']['id']
+                newitemtbl1._date = date_object.date()
+                god = 0
+                for ind in range(1, 13):
+                    sm = itemtbl1['sm'+str(ind)] if not itemtbl1['sm' + str(ind)] == None else 0
+                    god += sm
+                    setattr(newitemtbl1, 'sm' + str(ind), sm)
+                newitemtbl1.god = god
+                # newitemtbl1.save()
+                rows_save_tbl.append(newitemtbl1)
+
+
+                reg_new_rec = reg_inc()
+                reg_new_rec._utv_inc_id = itemdoc.id
+                reg_new_rec._classification_id = itemtbl1['_classification']['id']
+                reg_new_rec._organization_id = org.id
+                reg_new_rec._date = date_object
+                reg_new_rec._budjet_id = itemdoc._budjet_id
+                god = 0
+                for ind in range(1, 13):
+                    sm = itemtbl1['sm'+str(ind)] if not itemtbl1['sm' + str(ind)] == None else 0
+                    god += sm
+                    setattr(reg_new_rec, 'sm' + str(ind), sm)
+                reg_new_rec.god = god
+                # reg_new_rec.save()
+                rows_save_reg.append(reg_new_rec) # Помещаем в массив строки для дальнейшей записи за одно обращение
+
+            utv_inc_tbl1.objects.bulk_create(rows_save_tbl)
+            reg_inc.objects.bulk_create(rows_save_reg)
+    
 
     except Exception as e:
         return HttpResponse('{"status": "Ошибка сохранения документа"}', content_type="application/json", status=400)
@@ -273,6 +261,7 @@ def izmincsave(request):
     doc_req = data['doc']
     tbl1_req = data['tbl1']
     org_id = doc_req['_organization']['id']
+    bjt_id = doc_req['_organization']['_budjet']['id']
     doc_id = doc_req['id']
 
     try:
@@ -298,17 +287,18 @@ def izmincsave(request):
             # Непосредственно сохранение документа
             itemdoc.save()
 
-            # Запись табличной части документа изменения по пос     туплениям
-            ids_tbl1 = []
-            for itemtbl1 in tbl1_req:
-                # Проверка на изменение сумм в ранних периодах
-                if itemtbl1['id'] == 0:
-                    # если ид = 0. то создаем новый
-                    newitemtbl1 = izm_inc_tbl1()
-                else:
-                    # иначе получаем существующий документ
-                    newitemtbl1 = izm_inc_tbl1.objects.get(id=itemtbl1['id'])
 
+            #Очищаем предыдущие записи табличной части
+            del_pay_obl = f"""DELETE FROM docs_izm_inc_tbl1 WHERE _izm_inc_id = {itemdoc.id};
+                              DELETE FROM docs_reg_inc WHERE _izm_inc_id = {itemdoc.id};"""
+            with connection.cursor() as cursor:
+                cursor.execute(del_pay_obl)
+
+            rows_save = []
+            rows_save_reg = []
+            # Запись табличной части документа изменения по поступлениям
+            for itemtbl1 in tbl1_req:
+                newitemtbl1 = izm_inc_tbl1()
                 newitemtbl1._izm_inc_id = itemdoc.id
                 newitemtbl1._classification_id = itemtbl1['_classification']['id']
                 newitemtbl1._organization_id = org_id
@@ -337,15 +327,39 @@ def izmincsave(request):
                     setattr(newitemtbl1, 'utv' + str(ind), utv)
                     setattr(newitemtbl1, 'sm' + str(ind), sm)
                     setattr(newitemtbl1, 'itog' + str(ind), itog)
+                rows_save.append(newitemtbl1) # Помещаем в массив строки для дальнейшей записи за одно обращение
 
-                newitemtbl1.save()
-                ids_tbl1.append(newitemtbl1.id)
 
-            # Удаление не существующих строк в БД
-            deleteitem = izm_inc_tbl1.objects.filter(
-                _izm_inc=doc_id).exclude(id__in=ids_tbl1)
-            for itmdel in deleteitem:
-                itmdel.delete()
+
+                reg_new_rec = reg_inc()
+                reg_new_rec._izm_inc_id = itemdoc.id
+                reg_new_rec._classification_id = itemtbl1['_classification']['id']
+                reg_new_rec._organization_id = org_id
+                reg_new_rec._date = date_object
+                reg_new_rec._budjet_id = bjt_id
+                god = 0
+                for ind in range(1, 13):
+                    sm = itemtbl1['sm'+str(ind)] if not itemtbl1['sm' + str(ind)] == None else 0
+                    god += sm
+                    setattr(reg_new_rec, 'sm' + str(ind), sm)
+                reg_new_rec.god = god
+                rows_save_reg.append(reg_new_rec) # Помещаем в массив строки для дальнейшей записи за одно обращение
+
+
+            izm_inc_tbl1.objects.bulk_create(rows_save)
+            reg_inc.objects.bulk_create(rows_save_reg)
+
+
+
+
+
+
+
+
+
+
+            
+
 
             list_clasif = ''
             for itm in tbl1_req:
@@ -360,14 +374,16 @@ def izmincsave(request):
                 str(date.year) + "-01-01 00:00:00", '%Y-%m-%d %H:%M:%S')
             dateend = date
 
-            query = f"""with sm as (SELECT _classification_id, sum(sm1) as sm1, sum(sm2) as sm2, sum(sm3) as sm3, sum(sm4) as sm4, sum(sm5) as sm5, sum(sm6) as sm6, sum(sm7) as sm7, sum(sm8) as sm8, sum(sm9) as sm9, sum(sm10) as sm10, sum(sm11) as sm11, sum(sm12) as sm12
+            query = f"""with 
+                        izm as (SELECT _classification_id,  sum(sm1) as sm1, sum(sm2) as sm2, sum(sm3) as sm3, sum(sm4) as sm4, sum(sm5) as sm5, sum(sm6) as sm6, sum(sm7) as sm7, sum(sm8) as sm8, sum(sm9) as sm9, sum(sm10) as sm10, sum(sm11) as sm11, sum(sm12) as sm12
+                                FROM public.docs_izm_inc_tbl1
+                                where  _izm_inc_id = {doc_id} and  _organization_id = {org_id} and not deleted and _date>='{date_start}' and _date <= '{dateend}' and _classification_id in ({list_clasif})
+                                group by _classification_id),            
+                        sm as (SELECT _classification_id, sum(sm1) as sm1, sum(sm2) as sm2, sum(sm3) as sm3, sum(sm4) as sm4, sum(sm5) as sm5, sum(sm6) as sm6, sum(sm7) as sm7, sum(sm8) as sm8, sum(sm9) as sm9, sum(sm10) as sm10, sum(sm11) as sm11, sum(sm12) as sm12
                                 FROM public.docs_utv_inc_tbl1
                                 where _organization_id = {org_id} and not deleted and _date>='{date_start}' and _date <= '{dateend}' and _classification_id in ({list_clasif})
                                 group by _classification_id),
-                        izm as (SELECT _classification_id,  sum(sm1) as sm1, sum(sm2) as sm2, sum(sm3) as sm3, sum(sm4) as sm4, sum(sm5) as sm5, sum(sm6) as sm6, sum(sm7) as sm7, sum(sm8) as sm8, sum(sm9) as sm9, sum(sm10) as sm10, sum(sm11) as sm11, sum(sm12) as sm12
-                                FROM public.docs_izm_inc_tbl1
-                                where not id = {doc_id} and  _organization_id = {org_id} and not deleted and _date>='{date_start}' and _date <= '{dateend}' and _classification_id in ({list_clasif})
-                                group by _classification_id),
+                        
                         union_sm_izm as (select * from sm
                                             union all
                                             select * from izm),

@@ -448,6 +448,9 @@ def report2_5(request):
     tip_rep = data['tip_rep']
     if not (tip_rep == "pay" or tip_rep == "obl"):
         return HttpResponse(json.dumps({"status": "Неверный тип отчета"}), content_type="application/json", status=400)
+    
+    if (org_id == 0):
+        return HttpResponse(json.dumps({"status": "Выберите организацию"}), content_type="application/json", status=400)
 
     # Получаем текущий каталог скрипт
     relative_path = os.path.join(current_directory, "report_template", "report_2_5.xlsx")
@@ -586,4 +589,136 @@ def report2_5(request):
     return resp
 
 
+@api_view(['POST', 'GET'])
+@permission_classes([IsAuthenticated])
+def report_14(request):
+    datastr = request.body
+    data = json.loads(datastr)
+    _budjet_id =  data['_budjet_id']
+    tip_rep = data['_date']
+  
+    if (_budjet_id == 0):
+        return HttpResponse(json.dumps({"status": "Выберите бюджет"}), content_type="application/json", status=400)
+
+    # Получаем текущий каталог скрипт
+    relative_path = os.path.join(current_directory, "report_template", "report_14.xlsx")
+    wb = load_workbook(relative_path)
+    ws = wb.active
+
+
+    border = Border(left=Side(style='thin', color='000000'),
+                right=Side(style='thin', color='000000'),
+                top=Side(style='thin', color='000000'),
+                bottom=Side(style='thin', color='000000'))
+
+    light_gray_fill = PatternFill(start_color='FFDDDDDD',
+                              end_color='FFDDDDDD',
+                              fill_type='solid')
+
+    query = f"""with reg as (SELECT * FROM docs_reg_inc),
+                        budjet as (select * from dirs_budjet
+                                    where id in (select _budjet_id from reg)),
+                        classif as (select * from dirs_classification_income
+                                    where id in (select _classification_id from reg)),
+                        cat as (select * from dirs_category_income
+                                    where id in (select _category_id from classif)),
+                        clas as (select * from dirs_class_income
+                                    where id in (select _classs_id from classif)),
+                        podcl as (select * from dirs_podclass_income
+                                    where id in (select _podclass_id from classif)),
+                        spec as (select * from dirs_spec_income
+                                    where id in (select _spec_id from classif))
+
+
+                    select  budjet.name_rus as budjet_name,
+                            cat.code as cat, right(clas.code, 2) as classs, right(podcl.code, 1) as podclass, right(spec.code,2) as spec, 
+                            '' as name,
+                            sum(reg.god) as god, 
+                            sum(reg.sm1) as sm1, 
+                            sum(reg.sm2) as sm2, 
+                            sum(reg.sm3) as sm3, 
+                            sum(reg.sm4) as sm4, 
+                            sum(reg.sm5) as sm5, 
+                            sum(reg.sm6) as sm6, 
+                            sum(reg.sm7) as sm7, 
+                            sum(reg.sm8) as sm8, 
+                            sum(reg.sm9) as sm9, 
+                            sum(reg.sm10) as sm10, 
+                            sum(reg.sm11) as sm11, 
+                            sum(reg.sm12) as sm12,
+                            max(cat.name_rus) as cat_name, max(clas.name_rus) as classs_name, max(podcl.name_rus) as podclass_name, max(spec.name_rus) as spec_name
+                    from reg
+                    left join budjet on 
+                        reg._budjet_id = budjet.id
+                    left join classif on 
+                        reg._classification_id = classif.id
+                    left join cat on 
+                        classif._category_id = cat.id
+                    left join clas on 
+                        classif._classs_id = clas.id
+                    left join podcl on 
+                        classif._podclass_id = podcl.id
+                    left join spec on 
+                        classif._spec_id = spec.id
+                    group by rollup(budjet.name_rus, cat.code, clas.code, podcl.code, spec.code)
+                    order by budjet.name_rus nulls first, cat.code nulls first, clas.code nulls first, podcl.code nulls first, spec.code nulls first
+                """
+
+    with connection.cursor() as cursor:
+        cursor.execute(query)
+        result = cursor.fetchall()
+
+  
+    startrow = 23
+    cnt = 0
+    for row in result:
+        color="FFFFFF"
+        if (row[0] == None):
+            continue
+
+        ws.insert_rows(startrow + cnt)
+        for i, value in enumerate(row, 1):
+
+            if i > 18:
+                continue
+
+            if i==6: #если это наименование
+                if (row[1]==None and row[2]==None and row[3]==None and row[4]==None):
+                    cell = ws.cell(row=startrow + cnt, column=i, value=row[18])
+                elif (row[2]==None and row[3]==None and row[4]==None):
+                    cell = ws.cell(row=startrow + cnt, column=i, value=row[19])
+                elif (row[3]==None and row[4]==None):
+                    cell = ws.cell(row=startrow + cnt, column=i, value=row[20])
+                elif (row[4]==None):
+                    cell = ws.cell(row=startrow + cnt, column=i, value=row[21])
+                else:
+                    cell = ws.cell(row=startrow + cnt, column=i, value=row[22])
+            else:
+                cell = ws.cell(row=startrow + cnt, column=i, value=value)
+            cell.border  = border
+
+
+            if cnt % 2 == 0:
+                cell.fill = light_gray_fill 
+                color = "FFDDDDDD"         
+
+            if (not value == None  and i>1 and i<6):
+                ws.cell(row=startrow + cnt, column=i-1).font = Font(color=color)
+        cnt += 1
+
+ 
+    xlsx_temp = current_directory + "/temp_files/" + request.user.username + "_14.xlsx"  
+    pdf_temp = current_directory + "/temp_files/" + request.user.username + "_14.pdf" 
+
+    wb.save(xlsx_temp)
+    workbook = Workbook(xlsx_temp)
+    workbook.save(pdf_temp)
+
+    pdf_file = open(pdf_temp, "rb")
+    body = FileWrapper(pdf_file)
+
+    resp =  HttpResponse(body, content_type="application/pdf")
+    resp['Content-Disposition'] = 'attachment; filename="table.pdf"'
+    pdf_file.close()
+    return resp
 

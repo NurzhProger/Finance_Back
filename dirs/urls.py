@@ -2,10 +2,18 @@ from django.urls import path
 from . import views
 
 urlpatterns = [
+    path('userlist', views.userlist, name='index'),
+    path('useritem/<int:id>', views.useritem, name='index'),
+    path('usersave', views.usersave, name='index'),
+    path('userdel/<int:id>', views.userdel, name='index'),
+    path('logineduser', views.logineduser, name='index'),
+
     path('organizationlist', views.organizationlist, name='index'),
     path('organizationitem/<int:id>', views.organizationitem, name='index'),
     path('organizationsave', views.organizationsave, name='index'),
     path('organizationdelete/<int:id>', views.organizationdelete, name='index'),
+    path('parent_organization_add', views.parent_organization_add, name='index'),
+    path('parent_organization_del/<int:id>', views.parent_organization_del, name='index'),
 
     path('budjetlist', views.budjetlist, name='index'),
 

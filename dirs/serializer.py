@@ -37,11 +37,51 @@ class budjetSerializer(serializers.ModelSerializer):
         fields = '__all__'
 
 
+class organizationMinSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = organization
+        fields = ['id', 'name_rus']
+
+
+class parent_organizationsSerializer(serializers.ModelSerializer):
+    _date = serializers.DateTimeField(format='%d.%m.%Y %H:%M:%S')
+    _parent = organizationMinSerializer()
+    class Meta:
+        model = parent_organizations
+        fields = '__all__'
+
+
 class organizationSerializer(serializers.ModelSerializer):
     _budjet = budjetSerializer()
     class Meta:
         model = organization
         fields = '__all__'
+
+
+class userlistSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = User
+        fields = ['id', 'username', 'first_name', 'last_name', 'is_active']
+
+
+class useritemSerializer(serializers.ModelSerializer):
+    last_login = serializers.DateTimeField(format='%d.%m.%Y %H:%M:%S')
+    date_joined = serializers.DateTimeField(format='%d.%m.%Y %H:%M:%S')
+    class Meta:
+        model = User
+        # fields = '__all__'
+        exclude = ['password', 'is_superuser', 'is_staff', 'groups', 'user_permissions']
+
+
+
+class profileSerializer(serializers.ModelSerializer):
+    _organization = organizationMinSerializer()
+    class Meta:
+        model = profile
+        fields = '__all__'
+
+
+
 
 class organizationMinSerializer(serializers.ModelSerializer):
     class Meta:

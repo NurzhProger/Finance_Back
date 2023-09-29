@@ -97,6 +97,34 @@ class izm_inc_tbl1(models.Model):
     itog12 = models.FloatField(null=True)
 
 
+class reg_inc(models.Model):
+    _utv_inc = models.ForeignKey(utv_inc, blank=True, null = True, on_delete=models.CASCADE, verbose_name='ИД документа')
+    _izm_inc = models.ForeignKey(izm_inc, blank=True, null = True, on_delete=models.CASCADE, verbose_name='ИД документа')
+    _classification = models.ForeignKey(classification_income, blank=True, on_delete=models.CASCADE, verbose_name='Классификация документа')
+    _organization = models.ForeignKey(organization, null=True, on_delete=models.CASCADE, verbose_name='Организация документа')
+    _budjet = models.ForeignKey(budjet, blank=True, null=True, on_delete=models.CASCADE, verbose_name='Бюджет документа')
+    _date = models.DateTimeField(null=True)
+
+    # Суммы изменении
+    god = models.FloatField(null=True)
+    sm1 = models.FloatField(null=True)
+    sm2 = models.FloatField(null=True)
+    sm3 = models.FloatField(null=True)
+    sm4 = models.FloatField(null=True)
+    sm5 = models.FloatField(null=True)
+    sm6 = models.FloatField(null=True)
+    sm7 = models.FloatField(null=True)
+    sm8 = models.FloatField(null=True)
+    sm9 = models.FloatField(null=True)
+    sm10 = models.FloatField(null=True)
+    sm11 = models.FloatField(null=True)
+    sm12 = models.FloatField(null=True)
+
+
+
+
+
+
 
 
 # Утвержденный план по расходам

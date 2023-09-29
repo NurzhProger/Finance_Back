@@ -4,15 +4,18 @@ from rest_framework import response
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import IsAuthenticated
 import json
+from django.db.models import Q
+from django.contrib.auth.models import User
+from django.db import connection, transaction
 from .models import *
 from .serializer import *
 from .shareModule import *
-from django.db.models import Q
 
 
 class CustomPagination(pagination.LimitOffsetPagination):
     default_limit = 25  # Количество объектов на странице по умолчанию
     max_limit = 50     # Максимальное количество объектов на странице
+
 
 
 @api_view(['GET'])
@@ -29,10 +32,12 @@ def organizationlist(request):
 @permission_classes([IsAuthenticated])
 def organizationitem(request, id):
     queryset = organization.objects.get(id=id)
-    # paginator = CustomPagination()
-    # paginated_queryset = paginator.paginate_queryset(queryset, request)
+    parent = queryset.child_organization
+    serialparent = parent_organizationsSerializer(parent, many=True)
     serial = organizationSerializer(queryset, many=False)
-    return response.Response(serial.data)
+    asd = serial.data
+    asd["parent_organizations"] = serialparent.data
+    return response.Response(asd)
 
 
 @api_view(['POST'])
@@ -57,12 +62,7 @@ def organizationsave(request):
     new.adress = adress
     new._budjet_id = _budjet['id']
     new.save()
-
-    queryset = organization.objects.all()
-    paginator = CustomPagination()
-    paginated_queryset = paginator.paginate_queryset(queryset, request)
-    serial = organizationSerializer(paginated_queryset, many=True)
-    return paginator.get_paginated_response(serial.data)
+    return HttpResponse('{"status":"Успешно добавлен родитель"}', content_type="application/json")
 
 
 @api_view(['DELETE'])
@@ -92,23 +92,165 @@ def budjetlist(request):
     return paginator.get_paginated_response(serial.data)
 
 
-@api_view(['GET'])
+@api_view(['POST'])
 @permission_classes([IsAuthenticated])
-def fkrupdate(request):
-    workbook = fkrreadxls()
-    return HttpResponse('{"status": "Загружены ФКР"}', content_type="application/json", status=200)
+def parent_organization_add(request):
+    datastr = request.body
+    data = json.loads(datastr)
+    id_org =  data['_organization_id']
+    id_parent = data['_parent_id']
+    date_object = datetime.strptime(data['_date'], '%d.%m.%Y %H:%M:%S')  
+    _date = date_object
+    newparent = parent_organizations()
+    newparent._organization_id = id_org
+    newparent._parent_id = id_parent
+    newparent._date = _date
+    newparent.save()
+    return HttpResponse('{"id": ' + str(newparent.id) + ',  "status":"Успешно добавлен родитель"}', content_type="application/json")
+
+
+
+@api_view(['DELETE'])
+@permission_classes([IsAuthenticated])
+def parent_organization_del(request, id):
+    try:
+        orgitem = parent_organizations.objects.get(id=id)
+        orgitem.delete()
+    except:
+        return HttpResponse('{"status": "Ошибка удаления организации"}', content_type="application/json", status=400)
+
+    queryset = organization.objects.all()
+    paginator = CustomPagination()
+    paginated_queryset = paginator.paginate_queryset(queryset, request)
+    serial = organizationSerializer(paginated_queryset, many=True)
+    return HttpResponse('{"status": "Успешно удален"}', content_type="application/json")
+
+
 
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
-def ekrupdate(request):
-    workbook = ekrreadxls()
-    return HttpResponse('{"status": "Загружены ЭКР"}', content_type="application/json", status=200)
+def userlist(request):
+    queryset = User.objects.all().order_by('username')
+    paginator = CustomPagination()
+    paginated_queryset = paginator.paginate_queryset(queryset, request)
+    serial = userlistSerializer(paginated_queryset, many=True)
+    return paginator.get_paginated_response(serial.data)
+
+
 
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
-def inc_dir_import(request):
-    workbook = inc_dir_import_xls()
-    return HttpResponse('{"status": "Загружены спр по доходам"}', content_type="application/json", status=200)
+def useritem(request, id):
+    queryset = User.objects.get(id=id)
+    serial = useritemSerializer(queryset, many=False)
+
+    try:
+        profileobj = profile.objects.get(_user_id = id)
+        _organization = {"id": profileobj._organization.id, "name_rus": profileobj._organization.name_rus}
+    except:
+        _organization = {"id": 0, "name_rus": "Выберите организацию"}
+
+    asd = serial.data
+    asd["password"] = ''
+    asd["_organization"] = _organization
+    return response.Response(asd)
+
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def usersave(request):
+    datastr = request.body
+    data = json.loads(datastr)
+
+    try:
+        with transaction.atomic():
+            id = data['id']
+            if id == 0:
+                userobj = User()
+                username =  data['username']
+                userobj.username = username
+
+            else:
+                userobj = User.objects.get(id = id)
+
+            first_name =  data['first_name']
+            last_name =  data['last_name']
+            email =  data['email']
+            is_active =  data['is_active']
+
+            userobj.first_name = first_name
+            userobj.last_name = last_name
+            userobj.email = email
+            userobj.is_active = is_active
+            userobj.save()
+
+        
+            try:
+                profileobj = profile.objects.get(_user_id = id)
+            except:
+                profileobj = profile()
+            profileobj._user_id = userobj.id
+            profileobj._organization_id = data['_organization']['id']
+            profileobj.save()
+
+            return HttpResponse('{"status": "Пользователь сохранен"}', content_type="application/json")
+    except Exception:
+        return HttpResponse('{"status": "Ошибка сохранения"}', content_type="application/json", status=400)
+
+
+@api_view(['DELETE'])
+@permission_classes([IsAuthenticated])
+def userdel(request, id):
+    queryset = User.objects.get(id=id)
+    queryset.delete()
+    return HttpResponse('{"status": "Пользователь удален"}', content_type="application/json")
+
+
+@api_view(['POST'])
+def logineduser(request):
+    datastr = request.body
+    data = json.loads(datastr)
+    username = data['username']
+    status = data['status']
+    _date = datetime.now()
+
+    objs = loginhistory.objects.filter(username = username).order_by('-id')[:5]
+    err = 0
+    lasttime = datetime.now()
+
+    for itm in objs:
+        if itm.status == 'error':
+            err +=1
+            lasttime = itm._date
+
+
+    raznica = (datetime.now() - lasttime).total_seconds()/60
+
+    if err>=5 and raznica<=2:
+        return HttpResponse('{"status": "Вы заблокированы на 2 минут."}', content_type="application/json", status = 400)
+
+
+    obj = loginhistory()
+    obj.username = username
+    obj.status = status
+    obj._date = _date
+    obj.save()
+
+
+    try:
+        qset = User.objects.get(username = username)
+        userserial = useritemSerializer(qset)
+        profserial = profileSerializer(qset.profile)
+        respon = {"user": userserial.data, "profile": profserial.data}
+        return response.Response(respon)
+    except:
+        respon = '{"user": "Ошибка логина или пароля"}'
+        return HttpResponse(respon, content_type="application/json", status = 400)
+   
+    
+
+
+
 
 
 # ****************************************************************
@@ -628,6 +770,8 @@ def typeincdoclist(request):
 
 
 
+
+
 # ****************************************************************
 # ****************Сервисы справочников расхода********************
 # ****************************************************************
@@ -705,3 +849,28 @@ def specexplist(request):
     paginated_queryset = paginator.paginate_queryset(queryset, request)
     serial = shareSerializer(paginated_queryset, many=True)
     return paginator.get_paginated_response(serial.data)
+
+
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def fkrupdate(request):
+    workbook = fkrreadxls()
+    return HttpResponse('{"status": "Загружены ФКР"}', content_type="application/json", status=200)
+
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def ekrupdate(request):
+    workbook = ekrreadxls()
+    return HttpResponse('{"status": "Загружены ЭКР"}', content_type="application/json", status=200)
+
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def inc_dir_import(request):
+    workbook = inc_dir_import_xls()
+    return HttpResponse('{"status": "Загружены спр по доходам"}', content_type="application/json", status=200)
+
+
+

@@ -1,12 +1,24 @@
 from django.db import models
 from django.contrib.auth.models import User
+from datetime import datetime
 
-
+# ****************************************************************
+# ****************Модели справочников системные********************
+# ****************************************************************
 class budjet(models.Model):
     code = models.TextField(null=True)
     name_kaz = models.TextField(null=True)
     name_rus = models.TextField(null=True)
     adress = models.TextField(null=True)
+    _parent = models.ForeignKey('self', blank=True, null = True, on_delete=models.CASCADE, verbose_name='Бюджет региона')
+    def __str__(self):
+        return self.name_rus
+
+
+class abp(models.Model):
+    code = models.TextField(null=True)
+    name_kaz = models.TextField(null=True)
+    name_rus = models.TextField(null=True)
     
 
 class organization(models.Model):
@@ -16,7 +28,16 @@ class organization(models.Model):
     name_rus = models.TextField(null=True)
     adress = models.TextField(null=True)
     _budjet = models.ForeignKey(budjet, blank=True, on_delete=models.CASCADE, verbose_name='Бюджет региона')
+    _abp = models.ForeignKey(abp, blank=True, null=True, on_delete=models.CASCADE, verbose_name='АБП')
     deleted = models.BooleanField(default=False, null=True)
+
+
+class parent_organizations(models.Model):
+    _date = models.DateTimeField(null=True, default=datetime(datetime.now().year, 1, 1, 0, 0, 0))
+    _organization = models.ForeignKey(organization, blank=True, null=True, on_delete=models.CASCADE, related_name='child_organization')
+    _parent = models.ForeignKey(organization, blank=True, null=True, on_delete=models.CASCADE, related_name='parent_organization')
+    # _organization_parent = models.BigIntegerField(blank=True, null=True, verbose_name='Родительская организация')
+    
 
 
 class profile(models.Model):
@@ -24,6 +45,25 @@ class profile(models.Model):
     _organization = models.ForeignKey(organization, blank=True, null=True, on_delete=models.CASCADE, verbose_name='Текущая организация')
 
 
+class type_izm_doc(models.Model):
+    name_kaz = models.TextField(null=True)
+    name_rus = models.TextField(null=True)
+
+
+class loginhistory(models.Model):
+    _date = models.DateTimeField(null=True, blank=True)
+    username = models.TextField(null=True, blank=True)
+    status = models.TextField(null=True, blank=True)
+
+
+
+
+
+
+
+# ****************************************************************
+# ****************Модели справочников доходов********************
+# ****************************************************************
 class category_income(models.Model):
     code = models.TextField(null=True)
     name_kaz = models.TextField(null=True)
@@ -63,11 +103,6 @@ class classification_income(models.Model):
 
 
 
-class type_izm_doc(models.Model):
-    name_kaz = models.TextField(null=True)
-    name_rus = models.TextField(null=True)
-
-
 
 
 
@@ -88,11 +123,6 @@ class funcpodgroup(models.Model):
     name_rus = models.TextField(null=True)
     _funcgroup = models.ForeignKey(funcgroup, blank=True, on_delete=models.CASCADE, verbose_name='Фнкциональная группа')
 
-
-class abp(models.Model):
-    code = models.TextField(null=True)
-    name_kaz = models.TextField(null=True)
-    name_rus = models.TextField(null=True)
 
 
 class program(models.Model):
