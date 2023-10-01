@@ -14,6 +14,13 @@ class budjet(models.Model):
     def __str__(self):
         return self.name_rus
 
+    def get_hierarchy_ids(self, include_self=True):
+        ids = [self.id] if include_self else []
+        children = budjet.objects.filter(_parent=self)
+        for child in children:
+            ids.extend(child.get_hierarchy_ids())
+        return ids
+
 
 class abp(models.Model):
     code = models.TextField(null=True)

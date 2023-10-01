@@ -75,7 +75,7 @@ class useritemSerializer(serializers.ModelSerializer):
 
 
 class profileSerializer(serializers.ModelSerializer):
-    _organization = organizationMinSerializer()
+    _organization = organizationSerializer()
     class Meta:
         model = profile
         fields = '__all__'

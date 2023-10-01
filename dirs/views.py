@@ -152,7 +152,7 @@ def useritem(request, id):
 
     asd = serial.data
     asd["password"] = ''
-    asd["_organization"] = _organization
+    asd["organization"] = _organization
     return response.Response(asd)
 
 
@@ -190,7 +190,7 @@ def usersave(request):
             except:
                 profileobj = profile()
             profileobj._user_id = userobj.id
-            profileobj._organization_id = data['_organization']['id']
+            profileobj._organization_id = data['organization']['id']
             profileobj.save()
 
             return HttpResponse('{"status": "Пользователь сохранен"}', content_type="application/json")
@@ -205,6 +205,20 @@ def userdel(request, id):
     queryset.delete()
     return HttpResponse('{"status": "Пользователь удален"}', content_type="application/json")
 
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def getinfo(request):
+    
+    username = request.user
+    try:
+        qset = User.objects.get(username = username)
+        userserial = useritemSerializer(qset)
+        profserial = profileSerializer(qset.profile)
+        respon = {"user": userserial.data, "profile": profserial.data}
+        return response.Response(respon)
+    except:
+        respon = '{"user": "Ошибка логина или пароля"}'
+        return HttpResponse(respon, content_type="application/json", status = 400)
 
 @api_view(['POST'])
 def logineduser(request):
@@ -227,7 +241,7 @@ def logineduser(request):
     raznica = (datetime.now() - lasttime).total_seconds()/60
 
     if err>=5 and raznica<=2:
-        return HttpResponse('{"status": "Вы заблокированы на 2 минут."}', content_type="application/json", status = 400)
+        return HttpResponse('{"status": "Вы заблокированы на 2 минуты."}', content_type="application/json", status = 400)
 
 
     obj = loginhistory()
@@ -236,16 +250,21 @@ def logineduser(request):
     obj._date = _date
     obj.save()
 
-
-    try:
-        qset = User.objects.get(username = username)
-        userserial = useritemSerializer(qset)
-        profserial = profileSerializer(qset.profile)
-        respon = {"user": userserial.data, "profile": profserial.data}
-        return response.Response(respon)
-    except:
-        respon = '{"user": "Ошибка логина или пароля"}'
+    if status ==  "error":
+        respon = '{"status": "Ошибка логина или пароля"}'
         return HttpResponse(respon, content_type="application/json", status = 400)
+
+    return HttpResponse('{"status": "Успешно"}', content_type="application/json", status = 200)
+
+    # try:
+    #     qset = User.objects.get(username = username)
+    #     userserial = useritemSerializer(qset)
+    #     profserial = profileSerializer(qset.profile)
+    #     respon = {"user": userserial.data, "profile": profserial.data}
+    #     return response.Response(respon)
+    # except:
+    #     respon = '{"user": "Ошибка логина или пароля"}'
+    #     return HttpResponse(respon, content_type="application/json", status = 400)
    
     
 
