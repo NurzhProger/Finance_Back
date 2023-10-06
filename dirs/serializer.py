@@ -2,6 +2,7 @@ from rest_framework import serializers
 from .models import *
 
 
+
 class shareSerializer(serializers.ModelSerializer):
     class Meta:
         model = category_income
@@ -78,6 +79,14 @@ class profileSerializer(serializers.ModelSerializer):
     _organization = organizationSerializer()
     class Meta:
         model = profile
+        fields = '__all__'
+
+
+
+class loginhistorySerializer(serializers.ModelSerializer):
+    _date = serializers.DateTimeField(format='%d.%m.%Y %H:%M:%S')
+    class Meta:
+        model = loginhistory
         fields = '__all__'
 
 

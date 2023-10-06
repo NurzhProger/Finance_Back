@@ -10,6 +10,8 @@ from django.db import connection, transaction
 from .models import *
 from .serializer import *
 from .shareModule import *
+import jwt
+
 
 
 class CustomPagination(pagination.LimitOffsetPagination):
@@ -214,14 +216,17 @@ def getinfo(request):
         qset = User.objects.get(username = username)
         userserial = useritemSerializer(qset)
         profserial = profileSerializer(qset.profile)
-        respon = {"user": userserial.data, "profile": profserial.data}
+        logs = loginhistory.objects.filter(username = username).order_by('-id')[:5]
+        logsserial = loginhistorySerializer(logs, many = True)
+        respon = {"user": userserial.data, "profile": profserial.data, "history":logsserial.data}
         return response.Response(respon)
-    except:
+    except Exception as err:
         respon = '{"user": "Ошибка логина или пароля"}'
         return HttpResponse(respon, content_type="application/json", status = 400)
 
 @api_view(['POST'])
 def logineduser(request):
+    client_ip = request.META.get('HTTP_X_FORWARDED_FOR', '') or request.META.get('REMOTE_ADDR', '')
     datastr = request.body
     data = json.loads(datastr)
     username = data['username']
@@ -248,11 +253,23 @@ def logineduser(request):
     obj.username = username
     obj.status = status
     obj._date = _date
+    obj.client_ip = client_ip
     obj.save()
 
     if status ==  "error":
         respon = '{"status": "Ошибка логина или пароля"}'
         return HttpResponse(respon, content_type="application/json", status = 400)
+
+    
+
+    request.session[username] = username
+
+    header = {"alg": "HS256", "typ": "JWT"}
+    payload = {"data": username}
+    secret_key = os.environ.get('SECRET_KEY')
+    encoded_jwt = jwt.encode(payload, secret_key, algorithm="HS256", headers=header)
+
+    print(encoded_jwt)
 
     return HttpResponse('{"status": "Успешно"}', content_type="application/json", status = 200)
 

@@ -61,6 +61,7 @@ class loginhistory(models.Model):
     _date = models.DateTimeField(null=True, blank=True)
     username = models.TextField(null=True, blank=True)
     status = models.TextField(null=True, blank=True)
+    client_ip = models.TextField(null=True, blank=True)
 
 
 
