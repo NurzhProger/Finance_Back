@@ -10,9 +10,7 @@ from django.db import connection, transaction
 from .models import *
 from .serializer import *
 from .shareModule import *
-import jwt
-
-
+from rest_framework.authtoken.models import Token
 
 class CustomPagination(pagination.LimitOffsetPagination):
     default_limit = 25  # Количество объектов на странице по умолчанию
@@ -184,6 +182,8 @@ def usersave(request):
             userobj.last_name = last_name
             userobj.email = email
             userobj.is_active = is_active
+            if not data['password']=='':
+                userobj.set_password(data['password'])
             userobj.save()
 
         
@@ -191,14 +191,46 @@ def usersave(request):
                 profileobj = profile.objects.get(_user_id = id)
             except:
                 profileobj = profile()
+                profileobj._date_change = datetime.now(tz=False)
             profileobj._user_id = userobj.id
             profileobj._organization_id = data['organization']['id']
+            if not data['password']=='':
+                profileobj.changepass = True
+                profileobj._date_change = datetime.now()
             profileobj.save()
+
+            Token.objects.filter(user_id = request.user.pk).delete()
 
             return HttpResponse('{"status": "Пользователь сохранен"}', content_type="application/json")
     except Exception:
         return HttpResponse('{"status": "Ошибка сохранения"}', content_type="application/json", status=400)
 
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def changepass(request):
+    datastr = request.body
+    data = json.loads(datastr)
+
+    if not data['first_password']==data['second_password']:
+        return HttpResponse('{"status": "Пароли не совпадают"}', content_type="application/json", status=400)
+
+    try:
+        with transaction.atomic():
+            userobj = User.objects.get(id = request.user.pk)
+            userobj.set_password(data['first_password'])
+            userobj.save()
+
+            profileobj = profile.objects.get(_user_id = request.user.pk)
+            profileobj.changepass = False
+            profileobj._date_change = datetime.now()
+            profileobj.save()
+
+            Token.objects.filter(user_id = request.user.pk).delete()
+
+            return HttpResponse('{"status": "Good"}', content_type="application/json", status=200)
+    except Exception:
+        return HttpResponse('{"status": "Ошибка сохранения"}', content_type="application/json", status=400)
 
 @api_view(['DELETE'])
 @permission_classes([IsAuthenticated])
@@ -206,6 +238,8 @@ def userdel(request, id):
     queryset = User.objects.get(id=id)
     queryset.delete()
     return HttpResponse('{"status": "Пользователь удален"}', content_type="application/json")
+
+
 
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
@@ -221,8 +255,43 @@ def getinfo(request):
         respon = {"user": userserial.data, "profile": profserial.data, "history":logsserial.data}
         return response.Response(respon)
     except Exception as err:
-        respon = '{"user": "Ошибка логина или пароля"}'
+        respon = '{"user": "Ошибка сервера"}'
         return HttpResponse(respon, content_type="application/json", status = 400)
+
+
+
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def cleartoken(request):
+    user_id = request.user.pk
+    Token.objects.filter(user_id = user_id).delete()
+
+    objs = loginhistory.objects.filter(username = request.user).order_by('-id')[:5]
+
+    err = 0
+    lasttime = datetime.now()
+
+    for itm in objs:
+        if itm.status == 'error':
+            err +=1
+            lasttime = itm._date
+
+
+    raznica = (datetime.now() - lasttime).total_seconds()/60
+
+    if err>=5 and raznica<=2:
+        return HttpResponse('{"detail": "Вы заблокированы на 2 минуты."}', content_type="application/json", status = 400)
+        
+    profileobj = profile.objects.get(_user_id = user_id)
+
+    diff_days = (datetime.now() - profileobj._date_change).days
+    if diff_days>60:
+        return HttpResponse('{"detail": "token cleared", "changepass":"True"}', content_type="application/json")
+    else:
+        return HttpResponse('{"detail": "token cleared", "changepass":"' + str(profileobj.changepass) + '"}', content_type="application/json")
+
+
 
 @api_view(['POST'])
 def logineduser(request):
@@ -260,16 +329,6 @@ def logineduser(request):
         respon = '{"status": "Ошибка логина или пароля"}'
         return HttpResponse(respon, content_type="application/json", status = 400)
 
-    
-
-    request.session[username] = username
-
-    header = {"alg": "HS256", "typ": "JWT"}
-    payload = {"data": username}
-    secret_key = os.environ.get('SECRET_KEY')
-    encoded_jwt = jwt.encode(payload, secret_key, algorithm="HS256", headers=header)
-
-    print(encoded_jwt)
 
     return HttpResponse('{"status": "Успешно"}', content_type="application/json", status = 200)
 

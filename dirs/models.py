@@ -1,6 +1,7 @@
 from django.db import models
 from django.contrib.auth.models import User
 from datetime import datetime
+from django.utils import timezone
 
 # ****************************************************************
 # ****************Модели справочников системные********************
@@ -50,6 +51,8 @@ class parent_organizations(models.Model):
 class profile(models.Model):
     _user = models.OneToOneField(User, on_delete=models.CASCADE)
     _organization = models.ForeignKey(organization, blank=True, null=True, on_delete=models.CASCADE, verbose_name='Текущая организация')
+    changepass = models.BooleanField(default=True, null=False)
+    _date_change = models.DateTimeField(null=True , default=timezone.now)
 
 
 class type_izm_doc(models.Model):

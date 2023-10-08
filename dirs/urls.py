@@ -5,9 +5,11 @@ urlpatterns = [
     path('userlist', views.userlist, name='index'),
     path('useritem/<int:id>', views.useritem, name='index'),
     path('usersave', views.usersave, name='index'),
+    path('changepass', views.changepass, name='index'),
     path('userdel/<int:id>', views.userdel, name='index'),
     path('logineduser', views.logineduser, name='index'),
     path('getinfo', views.getinfo, name='index'),
+    path('cleartoken', views.cleartoken, name='index'),
 
     path('organizationlist', views.organizationlist, name='index'),
     path('organizationitem/<int:id>', views.organizationitem, name='index'),

@@ -6,7 +6,7 @@ import os
 BASE_DIR = Path(__file__).resolve().parent.parent
 
 SECRET_KEY = "django-insecure-4!vhj-%)weh=5k_@#!0fgz0wtko(-z@+w-xvk2^*tk4vlc&#e$"
-DEBUG = False
+DEBUG = True
 
 ALLOWED_HOSTS = ['*']
 DATA_UPLOAD_MAX_MEMORY_SIZE = 25242880
@@ -35,12 +35,6 @@ INSTALLED_APPS = [
     'reps'
 ]
 
-
-# DJOSER = {
-#     'SERIALIZERS': {
-#         'token_create': 'path.to.your.serializers.CustomTokenCreateSerializer',
-#     }
-# }
 
 
 REST_FRAMEWORK = {
@@ -140,24 +134,6 @@ STATIC_URL = 'static/'
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
 
-LOGGING____ = {
-    'version': 1,
-    'disable_existing_loggers': False,
-    'handlers': {
-        'wazuh': {
-            'level': 'INFO',
-            'class': 'logging.FileHandler',
-            'filename': str(BASE_DIR) + '/wazuh.log',  # Путь к файлу логов Django
-        },
-    },
-    'loggers': {
-        'django': {
-            'handlers': ['wazuh'],
-            'level': 'INFO',
-            'propagate': True,
-        },
-    },
-}
 
 
 LOGGING = {
