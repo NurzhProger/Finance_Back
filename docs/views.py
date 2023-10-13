@@ -1286,12 +1286,18 @@ def expgetplanbyclassif(request):
 @api_view(['POST'])
 @permission_classes([IsAuthenticated])
 def import219(request):
-    jsreq = json.loads(request.body)
-    with open("test.pdf", "wb") as f:
-        strbs64 = jsreq['file']
-        strbs64 = strbs64.split(',')[1]
-        f.write(base64.b64decode(strbs64))
-    pdftotext("test.pdf")
+    # jsreq = json.loads(request.body)
+    # with open("test.pdf", "wb") as f:
+    #     strbs64 = jsreq['file']
+    #     strbs64 = strbs64.split(',')[1]
+    #     f.write(base64.b64decode(strbs64))
+    filesname = os.listdir("imports/219")
+    pdftotext("imports/219/330401.pdf")
+    # for filen in filesname:
+        # print('start new file 2-19')
+        # pdftotext("imports/219/" + filen)
+        # print('******************************************')
+    
     return HttpResponse('{"status": "Ошибка получения данных"}', content_type="application/json", status = 200)
 
 

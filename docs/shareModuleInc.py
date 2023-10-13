@@ -6,6 +6,10 @@ import tabula
 import os
 
 
+from PyPDF2 import PdfReader
+
+
+
 def getincplanbyclassif(organization, date = None, _classification_id=0):
     if date == None:
         date = datetime.now()
@@ -57,6 +61,72 @@ def getincplanbyclassif(organization, date = None, _classification_id=0):
 
 
 def pdftotext(filename):
+    pdffileobj=open(filename,'rb')
+    pdfreader= PdfReader(pdffileobj)
+    
+    x=len(pdfreader.pages)
+
+    kp_count = 0
+    for num in range(0, x):
+        pageobj = pdfreader.pages[num]
+        text=pageobj.extract_text().split('\n')
+
+        if not text[0] == 'Форма № 2-19':
+            return "not 2-19 file"
+
+        if num == 0:
+            _date = text[3].split(':')[1]
+            _budjet = text[4].split(': ')[1].split(' -')[0]
+
+        print('********************************************')
+        print(_date)
+        print(_budjet)
+
+        kp = ""
+        for i in range(5, len(text)):
+            str = text[i]
+
+            if not kp=="":
+                # Данная строка выяснит, содержит ли цифры. Если не содержит то возвращает пустую строку
+                value = ''.join(char for char in text[i] if char.isdigit())
+                if value == "":
+                    # Если не содержит цифры, то следующий цикл
+                    continue
+                else:
+                    # иначе это значит что это нужные нам суммы
+                    s = text[i]
+                    mass_item = s.split(' ')
+                    mas_sum = []
+                    for itm in mass_item:
+                        tmp = ''.join(char for char in itm if char.isdigit())
+                        if tmp=='':
+                            continue
+                        else:
+                            sm = float(itm.replace(',', ''))
+                            mas_sum.append(sm)
+
+                    print(kp, " ", mas_sum)
+                    kp = ""
+                    continue
+
+            try:
+                mas = str.split(' ')
+                value = mas[1].replace(' ', '')
+                if value.isdigit() and len(value)==6:
+                    kp = str.split(" ")[1].replace(" ", "")
+                    kp_count += 1
+            except:
+                continue
+
+
+    print(kp_count)
+    return True
+
+
+
+
+
+def pdftotextreserve(filename):
     listnum = ('0', '1', '2', '3', '4', '5', '6', '7','8', '9')
     # Извлечение таблицы из PDF
     df = tabula.read_pdf(filename, pages='all')
@@ -68,9 +138,9 @@ def pdftotext(filename):
 
     for page in df:
         page.to_excel('330410.xlsx', index=False)
-   
         # Загружаем книгу Excel
         workbook = load_workbook('330410.xlsx')
+
         # Получаем список названий листов в книге
         sheet_names = workbook.sheetnames
         # Выбираем первый лист
@@ -104,11 +174,11 @@ def pdftotext(filename):
                     budjet_code = mas_1
                     print(str(index) +') ' + kp_code + ' ' + budjet_code + ' ' + str(row[2])+ ' ' + str(row[3])+ ' ' + str(row[4])+ ' ' + str(row[5])+ ' ' + str(row[6])+ ' ' + str(row[7]))
                     # kp_code = ''
-                    try:
-                        itog2 = itog2 + float(str(row[2]).replace(',', ''))
-                    except:
-                        print('error ' + row[2])
-                        break
+                    # try:
+                    #     itog2 = itog2 + float(str(row[2]).replace(',', ''))
+                    # except:
+                    #     print('error ', row[2])
+                    #     break
 
 
                     # if first_sheet._cells[rowcount + 1, 2].value == None:
@@ -123,7 +193,8 @@ def pdftotext(filename):
 
         # Закрываем книгу
         workbook.close()
-    print(itog2)
+
+    # print(itog2)
     return True
 
 
