@@ -13,7 +13,7 @@ urlpatterns = [
     path('izmincitem/<int:id>', views.izmincitem, name='index'),
     path('izmincsave', views.izmincsave, name='index'),
     path('izmincdelete/<int:id>', views.izmincdelete, name='index'),
-    path('incgetplanbyclassif', views.incgetplanbyclassif, name='index'), 
+    path('incgetplanbyclassif', views.incgetplanbyclassif, name='index'),
 
 
     # Расходы утв документы
@@ -29,5 +29,6 @@ urlpatterns = [
     path('izmexpdelete/<int:id>', views.izmexpdelete, name='index'),
     path('expgetplanbyclassif', views.expgetplanbyclassif, name='index'),
 
-    path('import219', views.import219, name='index'), 
+    path('import219', views.import219, name='index'),
+    path('import420', views.import420, name='index'),
 ]

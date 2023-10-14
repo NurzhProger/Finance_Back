@@ -31,10 +31,9 @@ INSTALLED_APPS = [
     'rest_framework.authtoken',
     'djoser',
     'dirs',
-    'docs',
-    'reps'
+    'docs'
+    # 'reps'
 ]
-
 
 
 REST_FRAMEWORK = {
@@ -80,7 +79,6 @@ TEMPLATES = [
 WSGI_APPLICATION = 'finance.wsgi.application'
 
 
-
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.postgresql_psycopg2',
@@ -92,7 +90,6 @@ DATABASES = {
     }
 
 }
-
 
 
 AUTH_PASSWORD_VALIDATORS = [
@@ -132,8 +129,6 @@ STATIC_URL = 'static/'
 # https://docs.djangoproject.com/en/4.2/ref/settings/#default-auto-field
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
-
-
 
 
 LOGGING = {

@@ -9,12 +9,12 @@ import os
 from PyPDF2 import PdfReader
 
 
-
-def getincplanbyclassif(organization, date = None, _classification_id=0):
+def getincplanbyclassif(organization, date=None, _classification_id=0):
     if date == None:
         date = datetime.now()
 
-    date_start = datetime.strptime(str(date.year) + "-01-01 00:00:00", '%Y-%m-%d %H:%M:%S')
+    date_start = datetime.strptime(
+        str(date.year) + "-01-01 00:00:00", '%Y-%m-%d %H:%M:%S')
     dateend = date
 
     query = f"""with utv as (SELECT _classification_id, sum(sm1) as sm1, sum(sm2) as sm2, sum(sm3) as sm3, sum(sm4) as sm4, sum(sm5) as sm5, sum(sm6) as sm6, sum(sm7) as sm7, sum(sm8) as sm8, sum(sm9) as sm9, sum(sm10) as sm10, sum(sm11) as sm11, sum(sm12) as sm12 
@@ -55,21 +55,20 @@ def getincplanbyclassif(organization, date = None, _classification_id=0):
         cursor.execute(query)
         columns = [col[0] for col in cursor.description]
         result = [dict(zip(columns, row))
-                for row in cursor.fetchall()]
+                  for row in cursor.fetchall()]
     return result
 
 
-
 def pdftotext(filename):
-    pdffileobj=open(filename,'rb')
-    pdfreader= PdfReader(pdffileobj)
-    
-    x=len(pdfreader.pages)
+    pdffileobj = open(filename, 'rb')
+    pdfreader = PdfReader(pdffileobj)
+
+    x = len(pdfreader.pages)
 
     kp_count = 0
     for num in range(0, x):
         pageobj = pdfreader.pages[num]
-        text=pageobj.extract_text().split('\n')
+        text = pageobj.extract_text().split('\n')
 
         if not text[0] == 'Форма № 2-19':
             return "not 2-19 file"
@@ -86,7 +85,7 @@ def pdftotext(filename):
         for i in range(5, len(text)):
             str = text[i]
 
-            if not kp=="":
+            if not kp == "":
                 # Данная строка выяснит, содержит ли цифры. Если не содержит то возвращает пустую строку
                 value = ''.join(char for char in text[i] if char.isdigit())
                 if value == "":
@@ -99,7 +98,7 @@ def pdftotext(filename):
                     mas_sum = []
                     for itm in mass_item:
                         tmp = ''.join(char for char in itm if char.isdigit())
-                        if tmp=='':
+                        if tmp == '':
                             continue
                         else:
                             sm = float(itm.replace(',', ''))
@@ -112,22 +111,108 @@ def pdftotext(filename):
             try:
                 mas = str.split(' ')
                 value = mas[1].replace(' ', '')
-                if value.isdigit() and len(value)==6:
+                if value.isdigit() and len(value) == 6:
                     kp = str.split(" ")[1].replace(" ", "")
                     kp_count += 1
             except:
                 continue
 
-
     print(kp_count)
     return True
 
 
+def pdftotext420(filename):
+    pdffileobj = open(filename, 'rb')
+    pdfreader = PdfReader(pdffileobj)
 
+    x = len(pdfreader.pages)
+
+    for num in range(0, x):
+        pageobj = pdfreader.pages[num]
+        text = pageobj.extract_text().split('\n')
+
+        if not text[0] == 'Форма № 4-20':
+            return "not 2-19 file"
+
+        kp = ""
+        abp = ""
+        bp = ""
+        podpr = ""
+        spec = ""
+        itogsums = [0.00, 0.00, 0.00, 0.00, 0.00, 0.00, 0.00, 0.00, 0.00, 0.00]
+
+        for i in range(len(text)):
+            sums = [0.00, 0.00, 0.00, 0.00, 0.00, 0.00, 0.00, 0.00, 0.00, 0.00]
+
+            if i >= 29:
+                count = 0
+                prostotext = False
+                str = text[i]
+
+                for char in str:
+                    if char.isspace():
+                        count += 1
+                    else:
+                        if (char in ('1234567890')):
+                            break
+                        else:
+                            prostotext = True
+                            break
+
+                if prostotext:
+                    continue
+
+                if (count == 0):
+                    abp = ""
+                elif (count == 3):
+                    bp = ""
+                elif (count == 7):
+                    podpr = ""
+                elif (count == 12):
+                    spec = ""
+
+                # ищем АБП
+                if abp == "":
+                    abp = text[i].split(' ')[0]
+                    # print("АБП: ", abp)
+
+                # ищем БП
+                elif not abp == "" and bp == "":
+                    bp = text[i].split(' ')[3]
+                    # print("БП: ", bp)
+
+                elif not bp == "" and podpr == "":
+                    podpr = text[i].split(' ')[7]
+                    # print("Подпрограмма: ", podpr)
+
+                elif not podpr == "" and spec == "":
+                    spec = text[i].split(' ')[12]
+                    # print("Специфика: ", spec)
+                    if (text[i].split()[len(text[i].split())-1][-1] in ('1234567890')):
+                        item = i
+                        # print(abp + '/' + bp + '/' + podpr + '/' + spec)
+                    else:
+                        item = i + 1
+
+                    for y in range(10, 0, -1):
+                        txt = text[item].split()[len(text[item].split())-y]
+                        try:
+                            sums[10 - y] = float(txt.replace(',', ''))
+                        except:
+                            sums[10 - y] = float(
+                                ''.join(char for char in txt if char.isdigit() or char == '.'))
+
+                        itogsums[10-y] = itogsums[10 - y] + sums[10 - y]
+
+                    # print(abp + '/' + bp + '/' +
+                    #       podpr + '/' + spec)
+        print(itogsums)
+
+    return True
 
 
 def pdftotextreserve(filename):
-    listnum = ('0', '1', '2', '3', '4', '5', '6', '7','8', '9')
+    listnum = ('0', '1', '2', '3', '4', '5', '6', '7', '8', '9')
     # Извлечение таблицы из PDF
     df = tabula.read_pdf(filename, pages='all')
 
@@ -151,28 +236,27 @@ def pdftotextreserve(filename):
         for row in first_sheet.iter_rows(values_only=True):
             str_0 = row[0]
             str_1 = row[1]
-            
 
-            if not str_0 == None and len(str_0)>=6:
+            if not str_0 == None and len(str_0) >= 6:
                 mas_0 = str_0[0:6]
-                if mas_0[0] in listnum and  mas_0[5] in listnum:
+                if mas_0[0] in listnum and mas_0[5] in listnum:
                     kp_code = mas_0
                     # print(kp_code)
                     continue
 
-            
             if str_1 == None and rowcount == 1:
                 kp_code = ''
-       
+
             if not kp_code == '':
-                if str_1 == None or len(str_1)<6:
-                    continue            
+                if str_1 == None or len(str_1) < 6:
+                    continue
                 mas_1 = str_1[0:6]
                 if mas_1[0] in listnum and mas_1[5] in listnum and mas_1[1] in listnum and mas_1[2] in listnum and mas_1[3] in listnum and mas_1[4] in listnum:
                     rowcount = 1
                     index = index + 1
                     budjet_code = mas_1
-                    print(str(index) +') ' + kp_code + ' ' + budjet_code + ' ' + str(row[2])+ ' ' + str(row[3])+ ' ' + str(row[4])+ ' ' + str(row[5])+ ' ' + str(row[6])+ ' ' + str(row[7]))
+                    print(str(index) + ') ' + kp_code + ' ' + budjet_code + ' ' + str(row[2]) + ' ' + str(
+                        row[3]) + ' ' + str(row[4]) + ' ' + str(row[5]) + ' ' + str(row[6]) + ' ' + str(row[7]))
                     # kp_code = ''
                     # try:
                     #     itog2 = itog2 + float(str(row[2]).replace(',', ''))
@@ -180,16 +264,10 @@ def pdftotextreserve(filename):
                     #     print('error ', row[2])
                     #     break
 
-
                     # if first_sheet._cells[rowcount + 1, 2].value == None:
                     #     kp_code = ''
                     #     budjet_code = ''
                     # continue
-
-                
-
-                
-
 
         # Закрываем книгу
         workbook.close()
@@ -198,11 +276,10 @@ def pdftotextreserve(filename):
     return True
 
 
-
 def fkrreadxls(path='fkr.xls'):
-    listnum = ('0', '1', '2', '3', '4', '5', '6', '7','8', '9')
+    listnum = ('0', '1', '2', '3', '4', '5', '6', '7', '8', '9')
 
-    if os.path.exists(path):  
+    if os.path.exists(path):
         # Загружаем книгу Excel
         workbook = load_workbook(path)
         # Получаем список названий листов в книге
@@ -215,13 +292,7 @@ def fkrreadxls(path='fkr.xls'):
         for row in first_sheet.iter_rows(values_only=True):
             str_0 = row[0]
             str_1 = row[1]
-            
+
         # Закрываем книгу
         workbook.close()
     return True
-
-
-
-
-
-
