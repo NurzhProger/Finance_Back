@@ -15,9 +15,9 @@ CORS_ALLOW_ALL_ORIGINS = True
 CORS_ALLOW_CREDENTIALS = True
 CORS_ALLOWED_ORIGIN_REGEXES = ['*']
 
-SESSION_ENGINE = 'django.contrib.sessions.backends.db'
-SESSION_COOKIE_AGE = 30
-SESSION_SAVE_EVERY_REQUEST = True
+# SESSION_ENGINE = 'django.contrib.sessions.backends.db'
+# SESSION_COOKIE_AGE = 30
+# SESSION_SAVE_EVERY_REQUEST = True
 
 INSTALLED_APPS = [
     'django.contrib.admin',
@@ -133,31 +133,3 @@ STATIC_URL = 'static/'
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
-
-
-
-LOGGING = {
-    'version': 1,
-    'disable_existing_loggers': False,
-    'handlers': {
-        'wazuh': {
-            'level': 'INFO',
-            'class': 'logging.FileHandler',
-            'filename': str(BASE_DIR) + '/wazuh.log',
-            'formatter': 'json',
-        },
-    },
-    'formatters': {
-        'json': {
-            '()': 'pythonjsonlogger.jsonlogger.JsonFormatter',
-            'format': '%(asctime)s %(levelname)s %(name)s %(message)s %(filename)s %(funcName)s %(lineno)d %(pathname)s',
-        },
-    },
-    'loggers': {
-        'django': {
-            'handlers': ['wazuh'],
-            'level': 'INFO',
-            'propagate': True,
-        },
-    },
-}

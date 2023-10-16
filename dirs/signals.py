@@ -4,11 +4,11 @@ import datetime
 from .models import loginhistory
 from django.http import HttpResponse
 
-@receiver(user_logged_in)
-def before_user_logged_in(sender, request, user, **kwargs):
+# @receiver(user_logged_in)
+# def before_user_logged_in(sender, request, user, **kwargs):
      # Получаем текущий токен пользователя
     # current_token = user.auth_token
-    print(user)
+    # print(user)
 
 
 @receiver(user_logged_in)

@@ -2,3 +2,6 @@
 *\migrations
 *\__pycache__
 \.vscode
+*\temp_files
+*.xls
+*.xlsx

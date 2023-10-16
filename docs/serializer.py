@@ -105,6 +105,15 @@ class izm_exp_serial(serializers.ModelSerializer):
 
 
 
+class import_serial(serializers.ModelSerializer):
+    _organization = organizationMinSerializer()
+    _budjet = budjetSerializer()
+    _date = serializers.DateField(format='%d.%m.%Y')
+    class Meta:
+        model = import219
+        fields = "__all__"
+
+
 
 
 

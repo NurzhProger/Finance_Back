@@ -184,6 +184,7 @@ def usersave(request):
             userobj.is_active = is_active
             if not data['password']=='':
                 userobj.set_password(data['password'])
+                Token.objects.filter(user_id = id).delete()
             userobj.save()
 
         
@@ -191,7 +192,7 @@ def usersave(request):
                 profileobj = profile.objects.get(_user_id = id)
             except:
                 profileobj = profile()
-                profileobj._date_change = datetime.now(tz=False)
+                profileobj._date_change = datetime.now()
             profileobj._user_id = userobj.id
             profileobj._organization_id = data['organization']['id']
             if not data['password']=='':
@@ -199,10 +200,11 @@ def usersave(request):
                 profileobj._date_change = datetime.now()
             profileobj.save()
 
-            Token.objects.filter(user_id = request.user.pk).delete()
+            
 
             return HttpResponse('{"status": "Пользователь сохранен"}', content_type="application/json")
-    except Exception:
+    except Exception as err:
+        print(err)
         return HttpResponse('{"status": "Ошибка сохранения"}', content_type="application/json", status=400)
 
 

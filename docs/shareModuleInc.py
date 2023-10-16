@@ -1,12 +1,12 @@
 from datetime import datetime, timedelta
-from django.db import connection
+from django.db import connection, transaction
 from .models import *
 from openpyxl import load_workbook
 import tabula
 import os
 
 
-from PyPDF2 import PdfReader
+from PyPDF2 import PdfReader, PdfFileReader
 
 
 
@@ -61,12 +61,18 @@ def getincplanbyclassif(organization, date = None, _classification_id=0):
 
 
 def pdftotext(filename):
+
+    mass_obj = []
+    mass_kp = []
+
     pdffileobj=open(filename,'rb')
     pdfreader= PdfReader(pdffileobj)
     
     x=len(pdfreader.pages)
 
     kp_count = 0
+    kp = ""
+
     for num in range(0, x):
         pageobj = pdfreader.pages[num]
         text=pageobj.extract_text().split('\n')
@@ -78,11 +84,6 @@ def pdftotext(filename):
             _date = text[3].split(':')[1]
             _budjet = text[4].split(': ')[1].split(' -')[0]
 
-        print('********************************************')
-        print(_date)
-        print(_budjet)
-
-        kp = ""
         for i in range(5, len(text)):
             str = text[i]
 
@@ -102,13 +103,36 @@ def pdftotext(filename):
                         if tmp=='':
                             continue
                         else:
-                            sm = float(itm.replace(',', ''))
+                            sm = float(itm.replace(',', '').replace('район',''))
                             mas_sum.append(sm)
 
-                    print(kp, " ", mas_sum)
+                    kp_db = kp[0] + '/' + kp[1] + kp[2] + '/' + kp[3] + '/' + kp[4] + kp[5]
+                    
+                    if len(mas_sum)<10:
+                        continue
+
+                    obj = {
+                        "kp": kp_db,
+                        "sm1": mas_sum[0],
+                        "sm2": mas_sum[1],
+                        "sm3": mas_sum[2],
+                        "sm4": mas_sum[3],
+                        "sm5": mas_sum[4],
+                        "sm6": mas_sum[5],
+                        "sm7": mas_sum[6],
+                        "sm8": mas_sum[7],
+                        "sm9": mas_sum[8],
+                        "sm10": mas_sum[9],
+                    }
+
+                    mass_obj.append(obj)
+                    mass_kp.append(kp_db)
+
                     kp = ""
                     continue
 
+
+            # Здесь сначала определеяется КП, потом код сверху (суммы определяются)
             try:
                 mas = str.split(' ')
                 value = mas[1].replace(' ', '')
@@ -119,10 +143,111 @@ def pdftotext(filename):
                 continue
 
 
-    print(kp_count)
-    return True
+
+    # ****************************************************************
+    # ***ЗДЕСЬ УЖЕ НЕПОСРЕДСТВЕННО ЗАПИСЬ КОРРЕКТНО СЧИТАННЫХ ДАННЫХ**
+    # ****************************************************************
+    query = f"""SELECT id, code FROM public.dirs_classification_income
+                WHERE code in {tuple(mass_kp)}"""
+
+    with connection.cursor() as cursor:
+        cursor.execute(query)
+        columns = [col[0] for col in cursor.description]
+        result = [dict(zip(columns, row))
+                for row in cursor.fetchall()]
+
+    try:
+        with transaction.atomic():
+            _budjet_id = budjet.objects.filter(code = _budjet)[0].id
 
 
+            newdoc = import219()
+            newdoc.nom = '12'
+            newdoc._date = '2023-10-13'
+            newdoc._budjet_id = _budjet_id
+            newdoc._organization_id = 1
+            newdoc.save()
+
+            bulk_mass = []
+            for item in mass_obj:
+                newzap = import219_tbl1()
+                newzap._import219_id = newdoc.id
+                newzap._date = '2023-10-13'
+                newzap._budjet_id = _budjet_id
+                newzap._organization_id = 1
+
+                newzap.sm1 = item['sm1']
+                newzap.sm2 = item['sm2']
+                newzap.sm3 = item['sm3']
+                newzap.sm4 = item['sm4']
+                newzap.sm5 = item['sm5']
+                newzap.sm6 = item['sm6']
+                newzap.sm7 = item['sm7']
+                newzap.sm8 = item['sm8']
+                newzap.sm9 = item['sm9']
+                newzap.sm10 = item['sm10']
+
+                kp_bd_id = 0
+                for sr in result:
+                    if sr['code'] == item['kp']:
+                        kp_bd_id = sr['id']
+                        break
+
+                
+                # Если такой классификации поступления нету, то добавляем
+                if kp_bd_id == 0:
+                    ex_cat = category_income.objects.filter(code = item['kp'][0]).count()
+                    if ex_cat == 0:
+                        cat = category_income()
+                        cat.code = item['kp'][0]
+                        cat.name_kaz = "добавлено автоматический при импорте 2-19"
+                        cat.name_rus = "добавлено автоматический при импорте 2-19"
+                        cat.save()
+
+                    ex_clas = class_income.objects.filter(code = (item['kp'][2] + item['kp'][3])).count()
+                    if ex_clas == 0:
+                        classs = class_income()
+                        classs.code = item['kp'][2] + item['kp'][3]
+                        classs.name_kaz = "добавлено автоматический при импорте 2-19"
+                        classs.name_rus = "добавлено автоматический при импорте 2-19"
+                        classs.save()
+
+                    ex_podc = podclass_income.objects.filter(code = item['kp'][5]).count()
+                    if ex_podc == 0:
+                        podcl = podclass_income()
+                        podcl.code = item['kp'][5]
+                        podcl.name_kaz = "добавлено автоматический при импорте 2-19"
+                        podcl.name_rus = "добавлено автоматический при импорте 2-19"
+                        podcl.save()
+
+                    ex_spec = spec_income.objects.filter(code = (item['kp'][7] + item['kp'][8])).count()
+                    if ex_spec == 0:
+                        spec = spec_income()
+                        spec.code = item['kp'][7] + item['kp'][8]
+                        spec.name_kaz = "добавлено автоматический при импорте 2-19"
+                        spec.name_rus = "добавлено автоматический при импорте 2-19"
+                        spec.save()
+
+                    classific = classification_income()
+                    classific._category_id = cat.id
+                    classific._classs_id = classs.id
+                    classific._podclass_id = podcl.id
+                    classific._spec_id = spec.id
+                    classific.code = item['kp']
+                    classific.name_kaz = "добавлено автоматический при импорте 2-19"
+                    classific.name_rus = "добавлено автоматический при импорте 2-19"
+                    classific.save()
+                    kp_bd_id = classific.id
+
+                newzap._classification_id = kp_bd_id
+                bulk_mass.append(newzap)
+
+            import219_tbl1.objects.bulk_create(bulk_mass)
+
+        return True
+    except Exception as e:
+        print(e)
+        return True
 
 
 

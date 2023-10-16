@@ -2,7 +2,7 @@ from django.http import HttpResponse
 from rest_framework import pagination, response
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import IsAuthenticated
-import json
+import json, io
 import base64
 from datetime import datetime
 from django.db import connection, transaction
@@ -1285,22 +1285,362 @@ def expgetplanbyclassif(request):
 # ****************************************************************
 @api_view(['POST'])
 @permission_classes([IsAuthenticated])
-def import219(request):
-    # jsreq = json.loads(request.body)
-    # with open("test.pdf", "wb") as f:
-    #     strbs64 = jsreq['file']
-    #     strbs64 = strbs64.split(',')[1]
-    #     f.write(base64.b64decode(strbs64))
-    filesname = os.listdir("imports/219")
-    pdftotext("imports/219/330401.pdf")
-    # for filen in filesname:
-        # print('start new file 2-19')
-        # pdftotext("imports/219/" + filen)
-        # print('******************************************')
-    
-    return HttpResponse('{"status": "Ошибка получения данных"}', content_type="application/json", status = 200)
+def import_219(request):
+    jsreq = json.loads(request.body)
+    filesname = jsreq['file']
+
+    for filen in filesname:
+        buffer = base64.b64decode(filen.replace("data:application/pdf;base64,",""))
+        pdf_file = io.BytesIO(buffer)
+        pdfreader = PdfReader(pdf_file)
+        x=len(pdfreader.pages)
+
+        mass_obj = []
+        mass_kp = []
+        
+
+        kp_count = 0
+        kp = ""
+        for num in range(0, x):
+            pageobj = pdfreader.pages[num]
+            text=pageobj.extract_text().split('\n')
+
+            if not text[0] == 'Форма № 2-19':
+                return "not 2-19 file"
+
+            if num == 0:
+                _date = text[3].split(':')[1]
+                date = datetime.strptime(_date, '%d.%m.%Y')
+                _budjet = text[4].split(': ')[1].split(' -')[0]
+                budjet_name = text[4]
+
+            for i in range(5, len(text)):
+                str = text[i]
+
+                if not kp=="":
+                    # Данная строка выяснит, содержит ли цифры. Если не содержит то возвращает пустую строку
+                    value = ''.join(char for char in text[i] if char.isdigit())
+                    if value == "":
+                        # Если не содержит цифры, то следующий цикл
+                        continue
+                    else:
+                        # иначе это значит что это нужные нам суммы
+                        s = text[i]
+                        mass_item = s.split(' ')
+                        mas_sum = []
+                        for itm in mass_item:
+                            tmp = ''.join(char for char in itm if char.isdigit())
+                            if tmp=='':
+                                continue
+                            else:
+                                sm = float(itm.replace(',', '').replace('район','').replace('а',''))
+                                mas_sum.append(sm)
+
+                        kp_db = kp[0] + '/' + kp[1] + kp[2] + '/' + kp[3] + '/' + kp[4] + kp[5]
+                        
+                        if len(mas_sum)<10:
+                            continue
+
+                        obj = {
+                            "kp": kp_db,
+                            "sm1": mas_sum[0],
+                            "sm2": mas_sum[1],
+                            "sm3": mas_sum[2],
+                            "sm4": mas_sum[3],
+                            "sm5": mas_sum[4],
+                            "sm6": mas_sum[5],
+                            "sm7": mas_sum[6],
+                            "sm8": mas_sum[7],
+                            "sm9": mas_sum[8],
+                            "sm10": mas_sum[9],
+                        }
+
+                        mass_obj.append(obj)
+                        mass_kp.append(kp_db)
+
+                        kp = ""
+                        continue
 
 
+                # Здесь сначала определеяется КП, потом код сверху (суммы определяются)
+                try:
+                    mas = str.split(' ')
+                    value = mas[1].replace(' ', '')
+                    if value.isdigit() and len(value)==6:
+                        kp = str.split(" ")[1].replace(" ", "")
+                        kp_count += 1
+                except:
+                    continue
+
+        # ****************************************************************
+        # ***ЗДЕСЬ УЖЕ НЕПОСРЕДСТВЕННО ЗАПИСЬ КОРРЕКТНО СЧИТАННЫХ ДАННЫХ**
+        # ****************************************************************
+        query = f"""SELECT id, code FROM public.dirs_classification_income
+                    WHERE code in {tuple(mass_kp)}"""
+
+        with connection.cursor() as cursor:
+            cursor.execute(query)
+            columns = [col[0] for col in cursor.description]
+            result = [dict(zip(columns, row))
+                    for row in cursor.fetchall()]
+
+        try:
+            with transaction.atomic():
+                qset_bjt = budjet.objects.filter(code = _budjet)
+                _budjet_id = 0
+                for bjt in qset_bjt:
+                    _budjet_id = bjt.id
+
+                if _budjet_id == 0:
+                    newbjt = budjet()
+                    newbjt.code = _budjet
+                    newbjt.name_kaz = budjet_name
+                    newbjt.name_rus = budjet_name
+                    newbjt.save()
+                    _budjet_id = newbjt.id
+
+                exist_doc = import219.objects.filter(_date = date, _budjet_id = _budjet_id).count()
+                if exist_doc>0:
+                    transaction.rollback("Такой документ уже загружен")
+
+                newdoc = import219()
+                newdoc.nom = '12'
+                newdoc._date = date
+                newdoc._budjet_id = _budjet_id
+                newdoc._organization_id = 1
+                newdoc.save()
+
+                bulk_mass = []
+                for item in mass_obj:
+                    newzap = import219_tbl1()
+                    newzap._import219_id = newdoc.id
+                    newzap._date = date
+                    newzap._budjet_id = _budjet_id
+                    newzap._organization_id = 1
+
+                    newzap.sm1 = item['sm1']
+                    newzap.sm2 = item['sm2']
+                    newzap.sm3 = item['sm3']
+                    newzap.sm4 = item['sm4']
+                    newzap.sm5 = item['sm5']
+                    newzap.sm6 = item['sm6']
+                    newzap.sm7 = item['sm7']
+                    newzap.sm8 = item['sm8']
+                    newzap.sm9 = item['sm9']
+                    newzap.sm10 = item['sm10']
+
+                    kp_bd_id = 0
+                    for sr in result:
+                        if sr['code'] == item['kp']:
+                            kp_bd_id = sr['id']
+                            break
+
+                    
+                    # Если такой классификации поступления нету, то добавляем
+                    if kp_bd_id == 0:
+                        qset_cat = category_income.objects.filter(code = item['kp'][0])
+                        cat_id = 0
+                        for itm in qset_cat:
+                            cat_id = itm.id
+
+                        if cat_id == 0:
+                            cat1 = category_income()
+                            cat1.code = item['kp'][0]
+                            cat1.name_kaz = "добавлено автоматический при импорте 2-19"
+                            cat1.name_rus = "добавлено автоматический при импорте 2-19"
+                            cat1.save()
+                            cat_id = cat1.id
+
+                        qset_cat = class_income.objects.filter(code = (item['kp'][2] + item['kp'][3]))
+                        clas_id = 0
+                        for itm in qset_cat:
+                            clas_id = itm.id
+                        if clas_id == 0:
+                            classs = class_income()
+                            classs.code = item['kp'][2] + item['kp'][3]
+                            classs.name_kaz = "добавлено автоматический при импорте 2-19"
+                            classs.name_rus = "добавлено автоматический при импорте 2-19"
+                            classs.save()
+                            clas_id = classs.id
+
+                        qset_cat = podclass_income.objects.filter(code = item['kp'][5])
+                        podcl_id = 0
+                        for itm in qset_cat:
+                            podcl_id = itm.id
+                        if podcl_id == 0:
+                            podcl = podclass_income()
+                            podcl.code = item['kp'][5]
+                            podcl.name_kaz = "добавлено автоматический при импорте 2-19"
+                            podcl.name_rus = "добавлено автоматический при импорте 2-19"
+                            podcl.save()
+                            podcl_id = podcl.id
+
+                        qset_cat = spec_income.objects.filter(code = (item['kp'][7] + item['kp'][8]))
+                        spec_id = 0
+                        for itm in qset_cat:
+                            spec_id = itm.id
+                        if spec_id == 0:
+                            spec = spec_income()
+                            spec.code = item['kp'][7] + item['kp'][8]
+                            spec.name_kaz = "добавлено автоматический при импорте 2-19"
+                            spec.name_rus = "добавлено автоматический при импорте 2-19"
+                            spec.save()
+                            spec_id = spec.id
+
+
+                        classific = classification_income()
+                        classific._category_id = cat_id
+                        classific._classs_id = clas_id
+                        classific._podclass_id = podcl_id
+                        classific._spec_id = spec_id
+                        classific.code = item['kp']
+                        classific.name_kaz = "добавлено автоматический при импорте 2-19"
+                        classific.name_rus = "добавлено автоматический при импорте 2-19"
+                        classific.save()
+                        kp_bd_id = classific.id
+
+                    newzap._classification_id = kp_bd_id
+                    bulk_mass.append(newzap)
+
+                import219_tbl1.objects.bulk_create(bulk_mass)
+        except Exception as e:  
+            print(e.args[0])
+            continue
+    return HttpResponse('{"status": "данные успешно записаны"}', content_type="application/json", status = 200)
+
+
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def import219list(request):
+    queryset = import219.objects.order_by('nom')
+    paginator = CustomPagination()
+    paginated_queryset = paginator.paginate_queryset(queryset, request)
+    serial = import_serial(paginated_queryset, many = True)
+    return paginator.get_paginated_response(serial.data)
+
+
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def import219item(request, id_doc):
+    queryset = type_izm_doc.objects.all()
+    serialtype = typedocSerializer(queryset, many=True)
+
+    qset = import219.objects.get(id = id_doc)
+    serial = import_serial(qset, many = False)
+
+    query = f"""with tbl as (SELECT _classification_id, sm1, sm2, sm3, sm4, sm5, sm6, sm7, sm8, sm9, sm10 FROM public.docs_import219_tbl1
+                                WHERE _import219_id={id_doc}),
+                        classif as (SELECT id, code, name_rus as name FROM public.dirs_classification_income
+                                    WHERE id in (select _classification_id from tbl))
+                    select _classification_id, max(code) as code, max(name) as name, sum(sm1) as sm1, sum(sm2) as sm2, sum(sm3) as sm3, sum(sm4) as sm4, sum(sm5) as sm5, 
+                    sum(sm6) as sm6, sum(sm7) as sm7, sum(sm8) as sm8, sum(sm9) as sm9, sum(sm10) as sm10 from tbl
+                    left join classif
+                    on tbl._classification_id = classif.id
+                    group by rollup(_classification_id)
+                    order by _classification_id nulls last, code"""
+
+
+    with connection.cursor() as cursor:
+        cursor.execute(query)
+        columns = [col[0] for col in cursor.description]
+        result = [dict(zip(columns, row))
+            for row in cursor.fetchall()]
+
+    jsondata = {
+                    "doc": serial.data,
+                    "table": result
+                }
+    return response.Response(jsondata)
+
+
+
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def import_420(request):
+    pdffileobj = open("imports/420/2501.pdf", 'rb')
+    pdfreader = PdfReader(pdffileobj)
+
+    x = len(pdfreader.pages)
+
+    abp = ""
+    bp = ""
+    podpr = ""
+    spec = ""
+    itogsums = [0.00, 0.00, 0.00, 0.00, 0.00, 0.00, 0.00, 0.00, 0.00, 0.00]
+
+    for num in range(0, x):
+        pageobj = pdfreader.pages[num]
+        text = pageobj.extract_text().split('\n')
+
+        if not text[0] == 'Форма № 4-20':
+            return "not 2-19 file"
+
+        
+
+        for i in range(len(text)):
+            sums = [0.00, 0.00, 0.00, 0.00, 0.00, 0.00, 0.00, 0.00, 0.00, 0.00]
+
+            if i >= 15 and num==0:
+                count = 0
+                prostotext = False
+                str = text[i]
+
+                for char in str:
+                    if char.isspace():
+                        count += 1
+                    else:
+                        if (char in ('1234567890')):
+                            break
+                        else:
+                            prostotext = True
+                            break
+
+                if prostotext:
+                    continue
+
+                if (count == 0):
+                    abp = ""
+                elif (count == 3):
+                    bp = ""
+                elif (count == 7):
+                    podpr = ""
+                elif (count == 12):
+                    spec = ""
+
+                # ищем АБП
+                if abp == "":
+                    abp = text[i].split(' ')[0]
+
+                # ищем БП
+                elif not abp == "" and bp == "":
+                    bp = text[i].split(' ')[3]
+
+                elif not bp == "" and podpr == "":
+                    podpr = text[i].split(' ')[7]
+
+                elif not podpr == "" and spec == "":
+                    spec = text[i].split(' ')[12]
+                    if (text[i].split()[len(text[i].split())-1][-1] in ('1234567890')):
+                        item = i
+                    else:
+                        item = i + 1
+
+                    for y in range(10, 0, -1):
+                        txt = text[item].split()[len(text[item].split())-y]
+                        try:
+                            sums[10 - y] = float(txt.replace(',', ''))
+                        except:
+                            sums[10 - y] = float(''.join(char for char in txt if char.isdigit() or char == '.'))
+                        itogsums[10-y] = itogsums[10 - y] + sums[10 - y]
+
+                    print(abp + '/' + bp + '/' +    podpr + '/' + spec + '      ', sums)
+        
+    print(itogsums)
+
+    return HttpResponse('{"status": "данные успешно записаны"}', content_type="application/json", status = 200)
 
 
 

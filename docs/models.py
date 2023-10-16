@@ -382,14 +382,13 @@ class import219(models.Model):
 
 # ТЧ импорт форма 2-19 (поступления)
 class import219_tbl1(models.Model):
-    _izm_inc = models.ForeignKey(izm_inc, blank=True, on_delete=models.CASCADE, verbose_name='ИД документа')
+    _import219 = models.ForeignKey(import219, blank=True, null=True, on_delete=models.CASCADE, verbose_name='ИД документа')
     _classification = models.ForeignKey(classification_income, blank=True, on_delete=models.CASCADE, verbose_name='Классификация документа')
     _organization = models.ForeignKey(organization, null=True, on_delete=models.CASCADE, verbose_name='Организация документа')
     _budjet = models.ForeignKey(budjet, blank=True, on_delete=models.CASCADE, verbose_name='Бюджет документа')
-    _date = models.DateField(null=True)
+    _date = models.DateTimeField(null=True)
     deleted = models.BooleanField(default=False, null=True)
 
-    # Утвержденные суммы
     sm1 = models.FloatField(null=True) #Всего поступлений за день
     sm2 = models.FloatField(null=True) #Республиканский бюджет за день
     sm3 = models.FloatField(null=True) #Бюджет района (города обл-ого значения) за день
