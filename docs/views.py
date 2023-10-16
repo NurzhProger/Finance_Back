@@ -9,7 +9,8 @@ from django.db import connection, transaction
 from .models import *
 from .serializer import *
 # Общий модуль импортируем
-from .shareModuleInc import *
+from .shareModuleInc import getincplanbyclassif
+from PyPDF2 import PdfReader
 
 
 class CustomPagination(pagination.LimitOffsetPagination):

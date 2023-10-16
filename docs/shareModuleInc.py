@@ -6,7 +6,7 @@ import tabula
 import os
 
 
-from PyPDF2 import PdfReader, PdfFileReader
+from PyPDF2 import PdfReader
 
 
 def getincplanbyclassif(organization, date=None, _classification_id=0):
@@ -141,6 +141,8 @@ def pdftotext(filename):
     print(kp_count)
     return True
 
+
+
 def pdftotextreserve(filename):
     listnum = ('0', '1', '2', '3', '4', '5', '6', '7', '8', '9')
     # Извлечение таблицы из PDF
@@ -204,6 +206,7 @@ def pdftotextreserve(filename):
 
     # print(itog2)
     return True
+
 
 
 def fkrreadxls(path='fkr.xls'):
