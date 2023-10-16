@@ -7,33 +7,34 @@ from docs.models import *
 from .serializer import *
 from django.db import connection
 from wsgiref.util import FileWrapper
-import json, os, datetime
+import json
+import os
+import datetime
 
 from openpyxl import load_workbook
 from openpyxl.styles import Font, Border, Side, PatternFill
 from openpyxl.worksheet.page import PageMargins, PrintPageSetup
 
 
-import  jpype     
-jpype.startJVM() 
+import jpype
+# jpype.startJVM()
 from asposecells.api import Workbook
 
 current_directory = os.path.dirname(__file__)
 
 
-
 @api_view(['POST', 'GET'])
 @permission_classes([IsAuthenticated])
 def report2728(request):
-    
+
     datastr = request.body
     data = json.loads(datastr)
-    id =  data['id']
+    id = data['id']
     tip_rep = data['tip_rep']
 
-
     # Получаем текущий каталог скрипта
-    relative_path = os.path.join(current_directory, "report_template", "report_2728.xlsx")
+    relative_path = os.path.join(
+        current_directory, "report_template", "report_2728.xlsx")
     wb = load_workbook(relative_path)
     ws = wb.active
     # ws.page_setup.orientation = ws.ORIENTATION_LANDSCAPE
@@ -44,13 +45,13 @@ def report2728(request):
     # ws.page_setup = page_setup
 
     border = Border(left=Side(style='thin', color='000000'),
-                right=Side(style='thin', color='000000'),
-                top=Side(style='thin', color='000000'),
-                bottom=Side(style='thin', color='000000'))
+                    right=Side(style='thin', color='000000'),
+                    top=Side(style='thin', color='000000'),
+                    bottom=Side(style='thin', color='000000'))
 
     light_gray_fill = PatternFill(start_color='FFDDDDDD',
-                              end_color='FFDDDDDD',
-                              fill_type='solid')
+                                  end_color='FFDDDDDD',
+                                  fill_type='solid')
 
     query = f"""WITH zapros as (SELECT * FROM public.docs_izm_exp_{tip_rep}
                             WHERE _izm_exp_id={id}),
@@ -108,11 +109,10 @@ def report2728(request):
         cursor.execute(query)
         result = cursor.fetchall()
 
-  
     startrow = 17
     cnt = 0
     for row in result:
-        color="FFFFFF"
+        color = "FFFFFF"
         if (row[0] == None):
             continue
 
@@ -120,38 +120,40 @@ def report2728(request):
         for i, value in enumerate(row, 1):
             if i > 20:
                 continue
-            if i==7: #если это наименование
-                if (row[1]==None and row[2]==None and row[3]==None and row[4]==None and row[5]==None):
+            if i == 7:  # если это наименование
+                if (row[1] == None and row[2] == None and row[3] == None and row[4] == None and row[5] == None):
                     cell = ws.cell(row=startrow + cnt, column=i, value=row[20])
-                elif (row[2]==None and row[3]==None and row[4]==None and row[5]==None):
+                elif (row[2] == None and row[3] == None and row[4] == None and row[5] == None):
                     cell = ws.cell(row=startrow + cnt, column=i, value=row[21])
-                elif (row[3]==None and row[4]==None and row[5]==None):
+                elif (row[3] == None and row[4] == None and row[5] == None):
                     cell = ws.cell(row=startrow + cnt, column=i, value=row[22])
-                elif (row[4]==None and row[5]==None):
+                elif (row[4] == None and row[5] == None):
                     cell = ws.cell(row=startrow + cnt, column=i, value=row[23])
-                elif (row[5]==None):
+                elif (row[5] == None):
                     cell = ws.cell(row=startrow + cnt, column=i, value=row[24])
                 else:
                     cell = ws.cell(row=startrow + cnt, column=i, value=row[25])
             else:
                 cell = ws.cell(row=startrow + cnt, column=i, value=value)
-            cell.border  = border
+            cell.border = border
 
-
-            #Каждую строку меняем цвет фона чтобы было удобно пользователю
+            # Каждую строку меняем цвет фона чтобы было удобно пользователю
             if cnt % 2 == 0:
-                cell.fill = light_gray_fill 
-                color = "FFDDDDDD"   
+                cell.fill = light_gray_fill
+                color = "FFDDDDDD"
 
             # Если это группировка, то в следующем, меняем цвет, чтобы не было видно  (типа иерархия)
-            if (not value == None  and i>1 and i<7):
-                ws.cell(row=startrow + cnt, column=i-1).font = Font(color=color)
+            if (not value == None and i > 1 and i < 7):
+                ws.cell(row=startrow + cnt, column=i -
+                        1).font = Font(color=color)
         cnt += 1
 
     # ws.print_title_rows = "17:17"
 
-    xlsx_temp = current_directory + "/temp_files/" + request.user.username + "_2728.xlsx"  
-    pdf_temp = current_directory + "/temp_files/" + request.user.username + "_2728.pdf" 
+    xlsx_temp = current_directory + "/temp_files/" + \
+        request.user.username + "_2728.xlsx"
+    pdf_temp = current_directory + "/temp_files/" + \
+        request.user.username + "_2728.pdf"
 
     wb.save(xlsx_temp)
     workbook = Workbook(xlsx_temp)
@@ -160,11 +162,10 @@ def report2728(request):
     pdf_file = open(pdf_temp, "rb")
     body = FileWrapper(pdf_file)
 
-    resp =  HttpResponse(body, content_type="application/pdf")
+    resp = HttpResponse(body, content_type="application/pdf")
     resp['Content-Disposition'] = 'attachment; filename="table.pdf"'
     pdf_file.close()
     return resp
-
 
 
 @api_view(['POST', 'GET'])
@@ -172,23 +173,23 @@ def report2728(request):
 def report2930(request):
     datastr = request.body
     data = json.loads(datastr)
-    id =  data['id']
+    id = data['id']
     tip_rep = data['tip_rep']
 
     # Получаем текущий каталог скрипта
-    relative_path = os.path.join(current_directory, "report_template", "report_2930.xlsx")
+    relative_path = os.path.join(
+        current_directory, "report_template", "report_2930.xlsx")
     wb = load_workbook(relative_path)
     ws = wb.active
 
-
     border = Border(left=Side(style='thin', color='000000'),
-                right=Side(style='thin', color='000000'),
-                top=Side(style='thin', color='000000'),
-                bottom=Side(style='thin', color='000000'))
+                    right=Side(style='thin', color='000000'),
+                    top=Side(style='thin', color='000000'),
+                    bottom=Side(style='thin', color='000000'))
 
     light_gray_fill = PatternFill(start_color='FFDDDDDD',
-                              end_color='FFDDDDDD',
-                              fill_type='solid')
+                                  end_color='FFDDDDDD',
+                                  fill_type='solid')
 
     query = f"""WITH zapros as (SELECT * FROM public.docs_izm_exp_{tip_rep}
                             WHERE _izm_exp_id={id}),
@@ -243,11 +244,10 @@ def report2930(request):
         cursor.execute(query)
         result = cursor.fetchall()
 
-  
     startrow = 14
     cnt = 0
     for row in result:
-        color="FFFFFF"
+        color = "FFFFFF"
         if (row[0] == None):
             continue
 
@@ -257,38 +257,38 @@ def report2930(request):
             if i > 19:
                 continue
 
-            if i==6: #если это наименование
-                if (row[1]==None and row[2]==None and row[3]==None and row[4]==None):
+            if i == 6:  # если это наименование
+                if (row[1] == None and row[2] == None and row[3] == None and row[4] == None):
                     cell = ws.cell(row=startrow + cnt, column=i, value=row[19])
-                elif (row[2]==None and row[3]==None and row[4]==None):
+                elif (row[2] == None and row[3] == None and row[4] == None):
                     cell = ws.cell(row=startrow + cnt, column=i, value=row[20])
-                elif (row[3]==None and row[4]==None):
+                elif (row[3] == None and row[4] == None):
                     cell = ws.cell(row=startrow + cnt, column=i, value=row[21])
-                elif (row[4]==None):
+                elif (row[4] == None):
                     cell = ws.cell(row=startrow + cnt, column=i, value=row[22])
                 else:
                     cell = ws.cell(row=startrow + cnt, column=i, value=row[23])
             else:
                 cell = ws.cell(row=startrow + cnt, column=i, value=value)
-            cell.border  = border
-
-
+            cell.border = border
 
             # cell = ws.cell(row=14 + cnt, column=i, value=value)
             # cell.border  = border
 
             if cnt % 2 == 0:
-                cell.fill = light_gray_fill 
-                color = "FFDDDDDD"         
+                cell.fill = light_gray_fill
+                color = "FFDDDDDD"
 
-            if (not value == None  and i>1 and i<6):
+            if (not value == None and i > 1 and i < 6):
                 ws.cell(row=14 + cnt, column=i-1).font = Font(color=color)
         cnt += 1
 
     ws.print_title_rows = "17:17"
 
-    xlsx_temp = current_directory + "/temp_files/" + request.user.username + "_2930.xlsx"  
-    pdf_temp = current_directory + "/temp_files/" + request.user.username + "_2930.pdf" 
+    xlsx_temp = current_directory + "/temp_files/" + \
+        request.user.username + "_2930.xlsx"
+    pdf_temp = current_directory + "/temp_files/" + \
+        request.user.username + "_2930.pdf"
 
     wb.save(xlsx_temp)
     workbook = Workbook(xlsx_temp)
@@ -297,11 +297,10 @@ def report2930(request):
     pdf_file = open(pdf_temp, "rb")
     body = FileWrapper(pdf_file)
 
-    resp =  HttpResponse(body, content_type="application/pdf")
+    resp = HttpResponse(body, content_type="application/pdf")
     resp['Content-Disposition'] = 'attachment; filename="table.pdf"'
     pdf_file.close()
     return resp
-
 
 
 @api_view(['POST', 'GET'])
@@ -309,23 +308,23 @@ def report2930(request):
 def report3335(request):
     datastr = request.body
     data = json.loads(datastr)
-    id =  data['id']
+    id = data['id']
     tip_rep = data['tip_rep']
 
     # Получаем текущий каталог скрипта
-    relative_path = os.path.join(current_directory, "report_template", "report_3335.xlsx")
+    relative_path = os.path.join(
+        current_directory, "report_template", "report_3335.xlsx")
     wb = load_workbook(relative_path)
     ws = wb.active
 
-
     border = Border(left=Side(style='thin', color='000000'),
-                right=Side(style='thin', color='000000'),
-                top=Side(style='thin', color='000000'),
-                bottom=Side(style='thin', color='000000'))
+                    right=Side(style='thin', color='000000'),
+                    top=Side(style='thin', color='000000'),
+                    bottom=Side(style='thin', color='000000'))
 
     light_gray_fill = PatternFill(start_color='FFDDDDDD',
-                              end_color='FFDDDDDD',
-                              fill_type='solid')
+                                  end_color='FFDDDDDD',
+                                  fill_type='solid')
 
     query = f"""WITH zapros as (SELECT * FROM public.docs_izm_exp_{tip_rep}
                             WHERE _izm_exp_id={id}),
@@ -381,11 +380,10 @@ def report3335(request):
         cursor.execute(query)
         result = cursor.fetchall()
 
-  
     startrow = 21
     cnt = 0
     for row in result:
-        color="FFFFFF"
+        color = "FFFFFF"
         if (row[1] == None):
             continue
 
@@ -395,35 +393,37 @@ def report3335(request):
             if i > 19:
                 continue
 
-            if i==1: #если это наименование
-                if (row[2]==None and row[3]==None and row[4]==None and row[5]==None):
+            if i == 1:  # если это наименование
+                if (row[2] == None and row[3] == None and row[4] == None and row[5] == None):
                     cell = ws.cell(row=startrow + cnt, column=i, value=row[19])
-                elif (row[3]==None and row[4]==None and row[5]==None):
+                elif (row[3] == None and row[4] == None and row[5] == None):
                     cell = ws.cell(row=startrow + cnt, column=i, value=row[20])
-                elif (row[4]==None and row[5]==None):
+                elif (row[4] == None and row[5] == None):
                     cell = ws.cell(row=startrow + cnt, column=i, value=row[21])
-                elif (row[5]==None):
+                elif (row[5] == None):
                     cell = ws.cell(row=startrow + cnt, column=i, value=row[22])
                 else:
                     cell = ws.cell(row=startrow + cnt, column=i, value=row[23])
                 # cell.alignment = cell.alignment.copy(wrap_text=True)
             else:
                 cell = ws.cell(row=startrow + cnt, column=i, value=value)
-            cell.border  = border
-
+            cell.border = border
 
             if cnt % 2 == 0:
-                cell.fill = light_gray_fill 
-                color = "FFDDDDDD"         
+                cell.fill = light_gray_fill
+                color = "FFDDDDDD"
 
-            if (not value == None  and i>2 and i<6):
-                ws.cell(row=startrow + cnt, column=i-1).font = Font(color=color)
+            if (not value == None and i > 2 and i < 6):
+                ws.cell(row=startrow + cnt, column=i -
+                        1).font = Font(color=color)
         cnt += 1
 
     # ws.print_title_rows = "17:17"
 
-    xlsx_temp = current_directory + "/temp_files/" + request.user.username + "_3335.xlsx"  
-    pdf_temp = current_directory + "/temp_files/" + request.user.username + "_3335.pdf" 
+    xlsx_temp = current_directory + "/temp_files/" + \
+        request.user.username + "_3335.xlsx"
+    pdf_temp = current_directory + "/temp_files/" + \
+        request.user.username + "_3335.pdf"
 
     wb.save(xlsx_temp)
     workbook = Workbook(xlsx_temp)
@@ -432,11 +432,10 @@ def report3335(request):
     pdf_file = open(pdf_temp, "rb")
     body = FileWrapper(pdf_file)
 
-    resp =  HttpResponse(body, content_type="application/pdf")
+    resp = HttpResponse(body, content_type="application/pdf")
     resp['Content-Disposition'] = 'attachment; filename="table.pdf"'
     pdf_file.close()
     return resp
-
 
 
 @api_view(['POST', 'GET'])
@@ -444,28 +443,28 @@ def report3335(request):
 def report2_5(request):
     datastr = request.body
     data = json.loads(datastr)
-    org_id =  data['_organization_id']
+    org_id = data['_organization_id']
     tip_rep = data['tip_rep']
     if not (tip_rep == "pay" or tip_rep == "obl"):
         return HttpResponse(json.dumps({"status": "Неверный тип отчета"}), content_type="application/json", status=400)
-    
+
     if (org_id == 0):
         return HttpResponse(json.dumps({"status": "Выберите организацию"}), content_type="application/json", status=400)
 
     # Получаем текущий каталог скрипт
-    relative_path = os.path.join(current_directory, "report_template", "report_2_5.xlsx")
+    relative_path = os.path.join(
+        current_directory, "report_template", "report_2_5.xlsx")
     wb = load_workbook(relative_path)
     ws = wb.active
 
-
     border = Border(left=Side(style='thin', color='000000'),
-                right=Side(style='thin', color='000000'),
-                top=Side(style='thin', color='000000'),
-                bottom=Side(style='thin', color='000000'))
+                    right=Side(style='thin', color='000000'),
+                    top=Side(style='thin', color='000000'),
+                    bottom=Side(style='thin', color='000000'))
 
     light_gray_fill = PatternFill(start_color='FFDDDDDD',
-                              end_color='FFDDDDDD',
-                              fill_type='solid')
+                                  end_color='FFDDDDDD',
+                                  fill_type='solid')
 
     query = f"""with union_utv_izm as (SELECT _fkr_id, _spec_id, _organization_id, sum(sm1) as sm1, sum(sm2) as sm2, sum(sm3) as sm3, sum(sm4) as sm4, sum(sm5) as sm5, sum(sm6) as sm6, sum(sm7) as sm7, sum(sm8) as sm8, sum(sm9) as sm9, sum(sm10) as sm10, sum(sm11) as sm11, sum(sm12) as sm12 
                             FROM public.docs_reg_exp_{tip_rep}
@@ -534,11 +533,10 @@ def report2_5(request):
         cursor.execute(query)
         result = cursor.fetchall()
 
-  
     startrow = 23
     cnt = 0
     for row in result:
-        color="FFFFFF"
+        color = "FFFFFF"
         if (row[0] == None):
             continue
 
@@ -548,33 +546,33 @@ def report2_5(request):
             if i > 19:
                 continue
 
-            if i==6: #если это наименование
-                if (row[1]==None and row[2]==None and row[3]==None and row[4]==None):
+            if i == 6:  # если это наименование
+                if (row[1] == None and row[2] == None and row[3] == None and row[4] == None):
                     cell = ws.cell(row=startrow + cnt, column=i, value=row[18])
-                elif (row[2]==None and row[3]==None and row[4]==None):
+                elif (row[2] == None and row[3] == None and row[4] == None):
                     cell = ws.cell(row=startrow + cnt, column=i, value=row[19])
-                elif (row[3]==None and row[4]==None):
+                elif (row[3] == None and row[4] == None):
                     cell = ws.cell(row=startrow + cnt, column=i, value=row[20])
-                elif (row[4]==None):
+                elif (row[4] == None):
                     cell = ws.cell(row=startrow + cnt, column=i, value=row[21])
                 else:
                     cell = ws.cell(row=startrow + cnt, column=i, value=row[22])
             else:
                 cell = ws.cell(row=startrow + cnt, column=i, value=value)
-            cell.border  = border
-
+            cell.border = border
 
             if cnt % 2 == 0:
-                cell.fill = light_gray_fill 
-                color = "FFDDDDDD"         
+                cell.fill = light_gray_fill
+                color = "FFDDDDDD"
 
-            if (not value == None  and i>1 and i<6):
-                ws.cell(row=startrow + cnt, column=i-1).font = Font(color=color)
+            if (not value == None and i > 1 and i < 6):
+                ws.cell(row=startrow + cnt, column=i -
+                        1).font = Font(color=color)
         cnt += 1
 
- 
-    xlsx_temp = current_directory + "/temp_files/" + request.user.username + "_2_5.xlsx"  
-    pdf_temp = current_directory + "/temp_files/" + request.user.username + "_2_5.pdf" 
+    xlsx_temp = current_directory + "/temp_files/" + \
+        request.user.username + "_2_5.xlsx"
+    pdf_temp = current_directory + "/temp_files/" + request.user.username + "_2_5.pdf"
 
     wb.save(xlsx_temp)
     workbook = Workbook(xlsx_temp)
@@ -583,7 +581,7 @@ def report2_5(request):
     pdf_file = open(pdf_temp, "rb")
     body = FileWrapper(pdf_file)
 
-    resp =  HttpResponse(body, content_type="application/pdf")
+    resp = HttpResponse(body, content_type="application/pdf")
     resp['Content-Disposition'] = 'attachment; filename="table.pdf"'
     pdf_file.close()
     return resp
@@ -594,33 +592,30 @@ def report2_5(request):
 def report_14(request):
     datastr = request.body
     data = json.loads(datastr)
-    _budjet_id =  data['_budjet_id']
+    _budjet_id = data['_budjet_id']
     tip_rep = data['_date']
 
- 
-    ids_bjt = budjet.objects.get(id = _budjet_id).get_hierarchy_ids()
-    ids_bjt.append(0)#пустой ИД в конце, чтобы избавиться от лишнего ","
+    ids_bjt = budjet.objects.get(id=_budjet_id).get_hierarchy_ids()
+    ids_bjt.append(0)  # пустой ИД в конце, чтобы избавиться от лишнего ","
     kortej = tuple(ids_bjt)
- 
- 
-  
+
     if (_budjet_id == 0):
         return HttpResponse(json.dumps({"status": "Выберите бюджет"}), content_type="application/json", status=400)
 
     # Получаем текущий каталог скрипт
-    relative_path = os.path.join(current_directory, "report_template", "report_14.xlsx")
+    relative_path = os.path.join(
+        current_directory, "report_template", "report_14.xlsx")
     wb = load_workbook(relative_path)
     ws = wb.active
 
-
     border = Border(left=Side(style='thin', color='000000'),
-                right=Side(style='thin', color='000000'),
-                top=Side(style='thin', color='000000'),
-                bottom=Side(style='thin', color='000000'))
+                    right=Side(style='thin', color='000000'),
+                    top=Side(style='thin', color='000000'),
+                    bottom=Side(style='thin', color='000000'))
 
     light_gray_fill = PatternFill(start_color='FFDDDDDD',
-                              end_color='FFDDDDDD',
-                              fill_type='solid')
+                                  end_color='FFDDDDDD',
+                                  fill_type='solid')
 
     query = f"""with reg as (SELECT * FROM docs_reg_inc where _budjet_id in {kortej}),
                         budjet as (select * from dirs_budjet
@@ -675,11 +670,10 @@ def report_14(request):
         cursor.execute(query)
         result = cursor.fetchall()
 
-  
     startrow = 22
     cnt = 0
     for row in result:
-        color="FFFFFF"
+        color = "FFFFFF"
         # Пропуск общего итога
         if (row[0] == None):
             continue
@@ -690,33 +684,33 @@ def report_14(request):
             if i > 19:
                 continue
 
-            if i==6: #если это наименование
-                if (row[1]==None and row[2]==None and row[3]==None and row[4]==None):
+            if i == 6:  # если это наименование
+                if (row[1] == None and row[2] == None and row[3] == None and row[4] == None):
                     cell = ws.cell(row=startrow + cnt, column=i, value=row[19])
-                elif (row[2]==None and row[3]==None and row[4]==None):
+                elif (row[2] == None and row[3] == None and row[4] == None):
                     cell = ws.cell(row=startrow + cnt, column=i, value=row[20])
-                elif (row[3]==None and row[4]==None):
+                elif (row[3] == None and row[4] == None):
                     cell = ws.cell(row=startrow + cnt, column=i, value=row[21])
-                elif (row[4]==None):
+                elif (row[4] == None):
                     cell = ws.cell(row=startrow + cnt, column=i, value=row[22])
                 else:
                     cell = ws.cell(row=startrow + cnt, column=i, value=row[23])
             else:
                 cell = ws.cell(row=startrow + cnt, column=i, value=value)
-            cell.border  = border
-
+            cell.border = border
 
             if cnt % 2 == 0:
-                cell.fill = light_gray_fill 
-                color = "FFDDDDDD"         
+                cell.fill = light_gray_fill
+                color = "FFDDDDDD"
 
-            if (not value == None  and i>1 and i<6):
-                ws.cell(row=startrow + cnt, column=i-1).font = Font(color=color)
+            if (not value == None and i > 1 and i < 6):
+                ws.cell(row=startrow + cnt, column=i -
+                        1).font = Font(color=color)
         cnt += 1
 
- 
-    xlsx_temp = current_directory + "/temp_files/" + request.user.username + "_14.xlsx"  
-    pdf_temp = current_directory + "/temp_files/" + request.user.username + "_14.pdf" 
+    xlsx_temp = current_directory + "/temp_files/" + \
+        request.user.username + "_14.xlsx"
+    pdf_temp = current_directory + "/temp_files/" + request.user.username + "_14.pdf"
 
     wb.save(xlsx_temp)
     workbook = Workbook(xlsx_temp)
@@ -725,12 +719,10 @@ def report_14(request):
     pdf_file = open(pdf_temp, "rb")
     body = FileWrapper(pdf_file)
 
-    resp =  HttpResponse(body, content_type="application/pdf")
+    resp = HttpResponse(body, content_type="application/pdf")
     resp['Content-Disposition'] = 'attachment; filename="table.pdf"'
     pdf_file.close()
     return resp
-
-
 
 
 @api_view(['POST', 'GET'])
@@ -738,27 +730,25 @@ def report_14(request):
 def report_25(request):
     datastr = request.body
     data = json.loads(datastr)
-    _izm_inc_id =  data['_izm_inc_id']
+    _izm_inc_id = data['_izm_inc_id']
 
- 
-  
     if (_izm_inc_id == 0):
         return HttpResponse(json.dumps({"status": "Выберите бюджет"}), content_type="application/json", status=400)
 
     # Получаем текущий каталог скрипт
-    relative_path = os.path.join(current_directory, "report_template", "report_25.xlsx")
+    relative_path = os.path.join(
+        current_directory, "report_template", "report_25.xlsx")
     wb = load_workbook(relative_path)
     ws = wb.active
 
-
     border = Border(left=Side(style='thin', color='000000'),
-                right=Side(style='thin', color='000000'),
-                top=Side(style='thin', color='000000'),
-                bottom=Side(style='thin', color='000000'))
+                    right=Side(style='thin', color='000000'),
+                    top=Side(style='thin', color='000000'),
+                    bottom=Side(style='thin', color='000000'))
 
     light_gray_fill = PatternFill(start_color='FFDDDDDD',
-                              end_color='FFDDDDDD',
-                              fill_type='solid')
+                                  end_color='FFDDDDDD',
+                                  fill_type='solid')
 
     query = f"""with reg as (SELECT * FROM docs_reg_inc where _izm_inc_id = {_izm_inc_id}),
                         budjet as (select * from dirs_budjet
@@ -812,11 +802,10 @@ def report_25(request):
         cursor.execute(query)
         result = cursor.fetchall()
 
-  
     startrow = 20
     cnt = 0
     for row in result:
-        color="FFFFFF"
+        color = "FFFFFF"
         # Пропуск общего итога
         if (row[1] == None):
             continue
@@ -827,31 +816,31 @@ def report_25(request):
             if i > 18:
                 continue
 
-            if i==1: #если это наименование
-                if (row[2]==None and row[3]==None and row[4]==None):
+            if i == 1:  # если это наименование
+                if (row[2] == None and row[3] == None and row[4] == None):
                     cell = ws.cell(row=startrow + cnt, column=i, value=row[18])
-                elif (row[3]==None and row[4]==None):
+                elif (row[3] == None and row[4] == None):
                     cell = ws.cell(row=startrow + cnt, column=i, value=row[19])
-                elif (row[4]==None):
+                elif (row[4] == None):
                     cell = ws.cell(row=startrow + cnt, column=i, value=row[20])
                 else:
                     cell = ws.cell(row=startrow + cnt, column=i, value=row[21])
             else:
                 cell = ws.cell(row=startrow + cnt, column=i, value=value)
-            cell.border  = border
-
+            cell.border = border
 
             if cnt % 2 == 0:
-                cell.fill = light_gray_fill 
-                color = "FFDDDDDD"         
+                cell.fill = light_gray_fill
+                color = "FFDDDDDD"
 
-            if (not value == None  and i>2 and i<6):
-                ws.cell(row=startrow + cnt, column=i-1).font = Font(color=color)
+            if (not value == None and i > 2 and i < 6):
+                ws.cell(row=startrow + cnt, column=i -
+                        1).font = Font(color=color)
         cnt += 1
 
- 
-    xlsx_temp = current_directory + "/temp_files/" + request.user.username + "_25.xlsx"  
-    pdf_temp = current_directory + "/temp_files/" + request.user.username + "_25.pdf" 
+    xlsx_temp = current_directory + "/temp_files/" + \
+        request.user.username + "_25.xlsx"
+    pdf_temp = current_directory + "/temp_files/" + request.user.username + "_25.pdf"
 
     wb.save(xlsx_temp)
     workbook = Workbook(xlsx_temp)
@@ -860,14 +849,7 @@ def report_25(request):
     pdf_file = open(pdf_temp, "rb")
     body = FileWrapper(pdf_file)
 
-    resp =  HttpResponse(body, content_type="application/pdf")
+    resp = HttpResponse(body, content_type="application/pdf")
     resp['Content-Disposition'] = 'attachment; filename="table.pdf"'
     pdf_file.close()
     return resp
-
-
-
-
-
-
-

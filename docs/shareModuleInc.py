@@ -9,12 +9,12 @@ import os
 from PyPDF2 import PdfReader, PdfFileReader
 
 
-
-def getincplanbyclassif(organization, date = None, _classification_id=0):
+def getincplanbyclassif(organization, date=None, _classification_id=0):
     if date == None:
         date = datetime.now()
 
-    date_start = datetime.strptime(str(date.year) + "-01-01 00:00:00", '%Y-%m-%d %H:%M:%S')
+    date_start = datetime.strptime(
+        str(date.year) + "-01-01 00:00:00", '%Y-%m-%d %H:%M:%S')
     dateend = date
 
     query = f"""with utv as (SELECT _classification_id, sum(sm1) as sm1, sum(sm2) as sm2, sum(sm3) as sm3, sum(sm4) as sm4, sum(sm5) as sm5, sum(sm6) as sm6, sum(sm7) as sm7, sum(sm8) as sm8, sum(sm9) as sm9, sum(sm10) as sm10, sum(sm11) as sm11, sum(sm12) as sm12 
@@ -55,16 +55,11 @@ def getincplanbyclassif(organization, date = None, _classification_id=0):
         cursor.execute(query)
         columns = [col[0] for col in cursor.description]
         result = [dict(zip(columns, row))
-                for row in cursor.fetchall()]
+                  for row in cursor.fetchall()]
     return result
 
 
-
 def pdftotext(filename):
-
-    mass_obj = []
-    mass_kp = []
-
     pdffileobj=open(filename,'rb')
     pdfreader= PdfReader(pdffileobj)
     
@@ -75,7 +70,7 @@ def pdftotext(filename):
 
     for num in range(0, x):
         pageobj = pdfreader.pages[num]
-        text=pageobj.extract_text().split('\n')
+        text = pageobj.extract_text().split('\n')
 
         if not text[0] == 'Форма № 2-19':
             return "not 2-19 file"
@@ -87,7 +82,7 @@ def pdftotext(filename):
         for i in range(5, len(text)):
             str = text[i]
 
-            if not kp=="":
+            if not kp == "":
                 # Данная строка выяснит, содержит ли цифры. Если не содержит то возвращает пустую строку
                 value = ''.join(char for char in text[i] if char.isdigit())
                 if value == "":
@@ -100,7 +95,7 @@ def pdftotext(filename):
                     mas_sum = []
                     for itm in mass_item:
                         tmp = ''.join(char for char in itm if char.isdigit())
-                        if tmp=='':
+                        if tmp == '':
                             continue
                         else:
                             sm = float(itm.replace(',', '').replace('район',''))
@@ -136,123 +131,18 @@ def pdftotext(filename):
             try:
                 mas = str.split(' ')
                 value = mas[1].replace(' ', '')
-                if value.isdigit() and len(value)==6:
+                if value.isdigit() and len(value) == 6:
                     kp = str.split(" ")[1].replace(" ", "")
                     kp_count += 1
             except:
                 continue
 
 
-
-    # ****************************************************************
-    # ***ЗДЕСЬ УЖЕ НЕПОСРЕДСТВЕННО ЗАПИСЬ КОРРЕКТНО СЧИТАННЫХ ДАННЫХ**
-    # ****************************************************************
-    query = f"""SELECT id, code FROM public.dirs_classification_income
-                WHERE code in {tuple(mass_kp)}"""
-
-    with connection.cursor() as cursor:
-        cursor.execute(query)
-        columns = [col[0] for col in cursor.description]
-        result = [dict(zip(columns, row))
-                for row in cursor.fetchall()]
-
-    try:
-        with transaction.atomic():
-            _budjet_id = budjet.objects.filter(code = _budjet)[0].id
-
-
-            newdoc = import219()
-            newdoc.nom = '12'
-            newdoc._date = '2023-10-13'
-            newdoc._budjet_id = _budjet_id
-            newdoc._organization_id = 1
-            newdoc.save()
-
-            bulk_mass = []
-            for item in mass_obj:
-                newzap = import219_tbl1()
-                newzap._import219_id = newdoc.id
-                newzap._date = '2023-10-13'
-                newzap._budjet_id = _budjet_id
-                newzap._organization_id = 1
-
-                newzap.sm1 = item['sm1']
-                newzap.sm2 = item['sm2']
-                newzap.sm3 = item['sm3']
-                newzap.sm4 = item['sm4']
-                newzap.sm5 = item['sm5']
-                newzap.sm6 = item['sm6']
-                newzap.sm7 = item['sm7']
-                newzap.sm8 = item['sm8']
-                newzap.sm9 = item['sm9']
-                newzap.sm10 = item['sm10']
-
-                kp_bd_id = 0
-                for sr in result:
-                    if sr['code'] == item['kp']:
-                        kp_bd_id = sr['id']
-                        break
-
-                
-                # Если такой классификации поступления нету, то добавляем
-                if kp_bd_id == 0:
-                    ex_cat = category_income.objects.filter(code = item['kp'][0]).count()
-                    if ex_cat == 0:
-                        cat = category_income()
-                        cat.code = item['kp'][0]
-                        cat.name_kaz = "добавлено автоматический при импорте 2-19"
-                        cat.name_rus = "добавлено автоматический при импорте 2-19"
-                        cat.save()
-
-                    ex_clas = class_income.objects.filter(code = (item['kp'][2] + item['kp'][3])).count()
-                    if ex_clas == 0:
-                        classs = class_income()
-                        classs.code = item['kp'][2] + item['kp'][3]
-                        classs.name_kaz = "добавлено автоматический при импорте 2-19"
-                        classs.name_rus = "добавлено автоматический при импорте 2-19"
-                        classs.save()
-
-                    ex_podc = podclass_income.objects.filter(code = item['kp'][5]).count()
-                    if ex_podc == 0:
-                        podcl = podclass_income()
-                        podcl.code = item['kp'][5]
-                        podcl.name_kaz = "добавлено автоматический при импорте 2-19"
-                        podcl.name_rus = "добавлено автоматический при импорте 2-19"
-                        podcl.save()
-
-                    ex_spec = spec_income.objects.filter(code = (item['kp'][7] + item['kp'][8])).count()
-                    if ex_spec == 0:
-                        spec = spec_income()
-                        spec.code = item['kp'][7] + item['kp'][8]
-                        spec.name_kaz = "добавлено автоматический при импорте 2-19"
-                        spec.name_rus = "добавлено автоматический при импорте 2-19"
-                        spec.save()
-
-                    classific = classification_income()
-                    classific._category_id = cat.id
-                    classific._classs_id = classs.id
-                    classific._podclass_id = podcl.id
-                    classific._spec_id = spec.id
-                    classific.code = item['kp']
-                    classific.name_kaz = "добавлено автоматический при импорте 2-19"
-                    classific.name_rus = "добавлено автоматический при импорте 2-19"
-                    classific.save()
-                    kp_bd_id = classific.id
-
-                newzap._classification_id = kp_bd_id
-                bulk_mass.append(newzap)
-
-            import219_tbl1.objects.bulk_create(bulk_mass)
-
-        return True
-    except Exception as e:
-        print(e)
-        return True
-
-
+    print(kp_count)
+    return True
 
 def pdftotextreserve(filename):
-    listnum = ('0', '1', '2', '3', '4', '5', '6', '7','8', '9')
+    listnum = ('0', '1', '2', '3', '4', '5', '6', '7', '8', '9')
     # Извлечение таблицы из PDF
     df = tabula.read_pdf(filename, pages='all')
 
@@ -276,28 +166,27 @@ def pdftotextreserve(filename):
         for row in first_sheet.iter_rows(values_only=True):
             str_0 = row[0]
             str_1 = row[1]
-            
 
-            if not str_0 == None and len(str_0)>=6:
+            if not str_0 == None and len(str_0) >= 6:
                 mas_0 = str_0[0:6]
-                if mas_0[0] in listnum and  mas_0[5] in listnum:
+                if mas_0[0] in listnum and mas_0[5] in listnum:
                     kp_code = mas_0
                     # print(kp_code)
                     continue
 
-            
             if str_1 == None and rowcount == 1:
                 kp_code = ''
-       
+
             if not kp_code == '':
-                if str_1 == None or len(str_1)<6:
-                    continue            
+                if str_1 == None or len(str_1) < 6:
+                    continue
                 mas_1 = str_1[0:6]
                 if mas_1[0] in listnum and mas_1[5] in listnum and mas_1[1] in listnum and mas_1[2] in listnum and mas_1[3] in listnum and mas_1[4] in listnum:
                     rowcount = 1
                     index = index + 1
                     budjet_code = mas_1
-                    print(str(index) +') ' + kp_code + ' ' + budjet_code + ' ' + str(row[2])+ ' ' + str(row[3])+ ' ' + str(row[4])+ ' ' + str(row[5])+ ' ' + str(row[6])+ ' ' + str(row[7]))
+                    print(str(index) + ') ' + kp_code + ' ' + budjet_code + ' ' + str(row[2]) + ' ' + str(
+                        row[3]) + ' ' + str(row[4]) + ' ' + str(row[5]) + ' ' + str(row[6]) + ' ' + str(row[7]))
                     # kp_code = ''
                     # try:
                     #     itog2 = itog2 + float(str(row[2]).replace(',', ''))
@@ -305,16 +194,10 @@ def pdftotextreserve(filename):
                     #     print('error ', row[2])
                     #     break
 
-
                     # if first_sheet._cells[rowcount + 1, 2].value == None:
                     #     kp_code = ''
                     #     budjet_code = ''
                     # continue
-
-                
-
-                
-
 
         # Закрываем книгу
         workbook.close()
@@ -323,11 +206,10 @@ def pdftotextreserve(filename):
     return True
 
 
-
 def fkrreadxls(path='fkr.xls'):
-    listnum = ('0', '1', '2', '3', '4', '5', '6', '7','8', '9')
+    listnum = ('0', '1', '2', '3', '4', '5', '6', '7', '8', '9')
 
-    if os.path.exists(path):  
+    if os.path.exists(path):
         # Загружаем книгу Excel
         workbook = load_workbook(path)
         # Получаем список названий листов в книге
@@ -340,13 +222,7 @@ def fkrreadxls(path='fkr.xls'):
         for row in first_sheet.iter_rows(values_only=True):
             str_0 = row[0]
             str_1 = row[1]
-            
+
         # Закрываем книгу
         workbook.close()
     return True
-
-
-
-
-
-
