@@ -105,7 +105,7 @@ class izm_exp_serial(serializers.ModelSerializer):
 
 
 
-class import_serial(serializers.ModelSerializer):
+class import_219_serial(serializers.ModelSerializer):
     _organization = organizationMinSerializer()
     _budjet = budjetSerializer()
     _date = serializers.DateField(format='%d.%m.%Y')
@@ -114,10 +114,23 @@ class import_serial(serializers.ModelSerializer):
         fields = "__all__"
 
 
+class import_420_serial(serializers.ModelSerializer):
+    _organization = organizationMinSerializer()
+    _budjet = budjetSerializer()
+    _date = serializers.DateField(format='%d.%m.%Y')
+    class Meta:
+        model = import420
+        fields = "__all__"
 
 
 
 
+class svod_exp_list_serial(serializers.ModelSerializer):
+    _organization = organizationMinSerializer()
+    _date = serializers.DateTimeField(format='%d.%m.%Y %H:%M:%S')
+    class Meta:
+        model = svod_exp
+        fields = '__all__'
 
 
 

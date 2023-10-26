@@ -403,13 +403,53 @@ class import219_tbl1(models.Model):
 
 
 
+# Импорт форма 4-20 (расходы)
+class import420(models.Model):
+    nom = models.TextField(null=True)
+    _date = models.DateField(null=True)
+    _organization = models.ForeignKey(organization, blank=True, on_delete=models.CASCADE, verbose_name='Организация документа')
+    _budjet = models.ForeignKey(budjet, blank=True, on_delete=models.CASCADE, verbose_name='Бюджет документа')
+    deleted = models.BooleanField(default=False, null=True)
+
+# ТЧ импорт форма 4-20 (расходы)
+class import420_tbl1(models.Model):
+    _import420 = models.ForeignKey(import420, blank=True, null=True, on_delete=models.CASCADE, verbose_name='ИД документа')
+    _fkr = models.ForeignKey(fkr, blank=True, on_delete=models.CASCADE, verbose_name='ФКР')
+    _spec = models.ForeignKey(spec_exp, blank=True, on_delete=models.CASCADE, verbose_name='СПЕЦ')
+    _organization = models.ForeignKey(organization, null=True, on_delete=models.CASCADE, verbose_name='Организация документа')
+    _budjet = models.ForeignKey(budjet, blank=True, on_delete=models.CASCADE, verbose_name='Бюджет документа')
+    _date = models.DateTimeField(null=True)
+    deleted = models.BooleanField(default=False, null=True)
+
+    sm1 = models.FloatField(null=True) #План финансирования за год
+    sm2 = models.FloatField(null=True) #С начала года обязательства
+    sm3 = models.FloatField(null=True) #С начала года платиежи
+    sm4 = models.FloatField(null=True) #Принятые обязательства с начала года
+    sm5 = models.FloatField(null=True) #Оплаченные обязательства с нач года
+    sm6 = models.FloatField(null=True) #Оплаченные обязательства на текущий месяц
+    sm7 = models.FloatField(null=True) #Неоплаченные обязательства
+    sm8 = models.FloatField(null=True) #Невыплаченные обязательства 
+    sm9 = models.FloatField(null=True) #Остаток по обязательствам
+    sm10 = models.FloatField(null=True)#Остаток по платежам
 
 
 
 
+# Свод справок по расходам
+class svod_exp(models.Model):
+    nom = models.TextField(null=True)
+    _date = models.DateTimeField(null=True)
+    _organization = models.ForeignKey(organization, blank=True, on_delete=models.CASCADE, verbose_name='Организация документа')
+    deleted = models.BooleanField(default=False, null=True)
 
 
-
+# ТЧ свода справок по расходам
+class svod_exp_tbl(models.Model):
+    _svod_exp = models.ForeignKey(svod_exp, blank=True, null=True, on_delete=models.CASCADE, verbose_name='ИД документа')
+    _izm_exp = models.ForeignKey(izm_exp, blank=True, on_delete=models.CASCADE, verbose_name='Классификация документа')
+    _organization = models.ForeignKey(organization, null=True, on_delete=models.CASCADE, verbose_name='Организация документа')
+    _date = models.DateTimeField(null=True)
+    deleted = models.BooleanField(default=False, null=True)
 
 
 

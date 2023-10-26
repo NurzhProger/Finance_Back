@@ -17,7 +17,7 @@ from openpyxl.worksheet.page import PageMargins, PrintPageSetup
 
 
 import jpype
-# jpype.startJVM()
+jpype.startJVM()
 from asposecells.api import Workbook
 
 current_directory = os.path.dirname(__file__)

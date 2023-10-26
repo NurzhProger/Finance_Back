@@ -9,7 +9,7 @@ from django.db import connection, transaction
 from .models import *
 from .serializer import *
 # Общий модуль импортируем
-from .shareModuleInc import getincplanbyclassif
+from .shareModuleInc import getincplanbyclassif, object_svod_get
 from PyPDF2 import PdfReader
 
 
@@ -1135,7 +1135,7 @@ def izmexpsave(request):
                 transaction.set_rollback(True)
                 return HttpResponse(json.dumps({"status": errormess}), content_type="application/json", status=400)
 
-            return HttpResponse(json.dumps({"status": "Документ успешно записан"}), content_type="application/json", status=200)
+            return HttpResponse(json.dumps({"status": "Документ успешно записан", "id_doc":itemdoc.id}), content_type="application/json", status=200)
 
     except Exception as e:
         response_data = {
@@ -1232,6 +1232,103 @@ def expgetplanbyclassif(request):
     return HttpResponse(merged_json, content_type="application/json")
 
 
+
+
+# ****************************************************************
+# ***Сервисы документа свода по расходам***
+# ****************************************************************
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def svodexplist(request):
+    queryset = svod_exp.objects.order_by('nom')
+    paginator = CustomPagination()
+    paginated_queryset = paginator.paginate_queryset(queryset, request)
+    serial = svod_exp_list_serial(paginated_queryset, many=True)
+    return paginator.get_paginated_response(serial.data)
+
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def svodexpadd(request):
+    datastr = request.body
+    data = json.loads(datastr)
+    id_doc = data['id']
+    if id_doc==0:
+        cnt = svod_exp.objects.filter(_organization_id = data['_organization']['id']).count()
+        doc = svod_exp()
+        doc.nom = str(cnt + 1)
+    else:
+        doc = svod_exp.objects.get(id=id_doc)
+    
+    doc._date = datetime.strptime(data['_date'], '%d.%m.%Y %H:%M:%S')
+    doc._organization_id = data['_organization']['id']
+    doc.save()
+    return HttpResponse(json.dumps({"status": "Успешно записан", "doc_id":doc.id}), content_type="application/json", status=200)
+
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def svodexpitem(request, id_doc):
+    if id_doc == 0:
+        org = request.user.profile._organization
+        jsondata = {
+                "doc": {
+                    "id": 0,
+                    "nom": "",
+                    "_date": datetime.now().strftime('%d.%m.%Y %H:%M:%S'),
+                    "deleted": False,
+                    "_organization": {
+                        "id": org.id,
+                        "name_rus": org.name_rus
+                    }
+                },
+                "payments":[],
+                "obligats":[],
+                "docs_izm":[]
+            }
+    else:
+        jsondata = object_svod_get(id_doc=id_doc)
+        
+    return response.Response(jsondata)
+
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def svodexp_add_doc(request, id_doc):
+    
+    datastr = request.body
+    data = json.loads(datastr)
+    doc_izm = izm_exp.objects.get(id = data['doc_id'])
+    tbl = svod_exp_tbl()
+    tbl._date = doc_izm._date
+    tbl._izm_exp = doc_izm
+    tbl._organization = doc_izm._organization
+    tbl._svod_exp_id = id_doc
+    tbl.save()
+    
+    jsondata = object_svod_get(id_doc=id_doc)
+    return response.Response(jsondata)
+
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def svodexp_del_doc(request, id_doc):
+    datastr = request.body
+    data = json.loads(datastr)
+    tbl = svod_exp_tbl.objects.get(id = data['doc_id'])
+    if tbl._svod_exp_id == id_doc:
+        tbl.delete()  
+    jsondata = object_svod_get(id_doc=id_doc)
+    return response.Response(jsondata)
+
+
+
+
+
+
+
+
+
 # ****************************************************************
 # *****Сервисы импорт по поступлениям 2-19*****
 # ****************************************************************
@@ -1240,6 +1337,7 @@ def expgetplanbyclassif(request):
 def import_219(request):
     jsreq = json.loads(request.body)
     filesname = jsreq['file']
+    _organization_id = request.user.profile._organization_id
 
     for filen in filesname:
         buffer = base64.b64decode(filen.replace("data:application/pdf;base64,",""))
@@ -1359,7 +1457,7 @@ def import_219(request):
                 newdoc.nom = '12'
                 newdoc._date = date
                 newdoc._budjet_id = _budjet_id
-                newdoc._organization_id = 1
+                newdoc._organization_id = _organization_id
                 newdoc.save()
 
                 bulk_mass = []
@@ -1368,7 +1466,7 @@ def import_219(request):
                     newzap._import219_id = newdoc.id
                     newzap._date = date
                     newzap._budjet_id = _budjet_id
-                    newzap._organization_id = 1
+                    newzap._organization_id = _organization_id
 
                     newzap.sm1 = item['sm1']
                     newzap.sm2 = item['sm2']
@@ -1468,7 +1566,7 @@ def import219list(request):
     queryset = import219.objects.order_by('nom')
     paginator = CustomPagination()
     paginated_queryset = paginator.paginate_queryset(queryset, request)
-    serial = import_serial(paginated_queryset, many = True)
+    serial = import_219_serial(paginated_queryset, many = True)
     return paginator.get_paginated_response(serial.data)
 
 
@@ -1477,10 +1575,8 @@ def import219list(request):
 @permission_classes([IsAuthenticated])
 def import219item(request, id_doc):
     queryset = type_izm_doc.objects.all()
-    serialtype = typedocSerializer(queryset, many=True)
-
     qset = import219.objects.get(id = id_doc)
-    serial = import_serial(qset, many = False)
+    serial = import_219_serial(qset, many = False)
 
     query = f"""with tbl as (SELECT _classification_id, sm1, sm2, sm3, sm4, sm5, sm6, sm7, sm8, sm9, sm10 FROM public.docs_import219_tbl1
                                 WHERE _import219_id={id_doc}),
@@ -1509,88 +1605,350 @@ def import219item(request, id_doc):
 
 
 
+
+# ****************************************************************
+# *****Сервисы импорт по расходам 4-20*****
+# ****************************************************************
 @api_view(['POST'])
 @permission_classes([IsAuthenticated])
 def import_420(request):
-    pdffileobj = open("imports/420/2501.pdf", 'rb')
-    pdfreader = PdfReader(pdffileobj)
+    jsreq = json.loads(request.body)
+    filesname = jsreq['file']
+    errors_txt = ""
+    for filen in filesname:
+        buffer = base64.b64decode(filen.replace("data:application/pdf;base64,",""))
+        pdf_file = io.BytesIO(buffer)
+        pdfreader = PdfReader(pdf_file)
 
-    x = len(pdfreader.pages)
+        # pdffileobj = open("../imports/420/2502.pdf", 'rb')
+        # pdfreader = PdfReader(pdffileobj)
 
-    abp = ""
-    bp = ""
-    podpr = ""
-    spec = ""
-    itogsums = [0.00, 0.00, 0.00, 0.00, 0.00, 0.00, 0.00, 0.00, 0.00, 0.00]
+        x = len(pdfreader.pages)
 
-    for num in range(0, x):
-        pageobj = pdfreader.pages[num]
-        text = pageobj.extract_text().split('\n')
+        abp_ = ""
+        bp = ""
+        podpr = ""
+        spec = ""
+        itogsums = [0.00, 0.00, 0.00, 0.00, 0.00, 0.00, 0.00, 0.00, 0.00, 0.00]
 
-        if not text[0] == 'Форма № 4-20':
-            return "not 2-19 file"
+        mass_res = []
+        mass_fkr = []
+        mass_spec = []
+        for num in range(0, x):
+            pageobj = pdfreader.pages[num]
+            text = pageobj.extract_text().split('\n')
+            if num == 0:
+                start_item = 15
+                _date = text[3].split(' ')[1]
+                budjet_code = text[6].split(' ')[1]
+                budjet_name = text[6].split(':')[1].replace(' ', '')
+                org = text[10].split(':')[1].split('-')[0].replace(' ','')
+                abp_code_str = org[0:3]
+                org_code = org[3:7]
+                org_name = text[10].split(':')[1].split('-')[1]
+            else:
+                start_item = 0
 
-        
+            if not text[0] == 'Форма № 4-20':
+                return "not 4-20 file"
 
-        for i in range(len(text)):
-            sums = [0.00, 0.00, 0.00, 0.00, 0.00, 0.00, 0.00, 0.00, 0.00, 0.00]
+            
+            for i in range(len(text)):
+                sums = [0.00, 0.00, 0.00, 0.00, 0.00, 0.00, 0.00, 0.00, 0.00, 0.00]       
 
-            if i >= 15 and num==0:
-                count = 0
-                prostotext = False
-                str = text[i]
+                if i >= start_item:
+                    count = 0
+                    prostotext = False
+                    str1 = text[i]
 
-                for char in str:
-                    if char.isspace():
-                        count += 1
-                    else:
-                        if (char in ('1234567890')):
-                            break
+                    for char in str1:
+                        if char.isspace():
+                            count += 1
                         else:
-                            prostotext = True
-                            break
+                            if (char in ('1234567890')):
+                                if not len(str1.split(' ')[count]) == 3:
+                                    prostotext = True
+                                break  
+                            else:
+                                prostotext = True
+                                break
 
-                if prostotext:
-                    continue
+                    if prostotext:
+                        continue
 
-                if (count == 0):
-                    abp = ""
-                elif (count == 3):
-                    bp = ""
-                elif (count == 7):
-                    podpr = ""
-                elif (count == 12):
-                    spec = ""
+                    if (count == 0):
+                        abp_ = ""
+                    elif (count == 3):
+                        bp = ""
+                    elif (count == 7):
+                        podpr = ""
+                    elif (count == 12):
+                        spec = ""
 
-                # ищем АБП
-                if abp == "":
-                    abp = text[i].split(' ')[0]
+                    # ищем АБП
+                    if abp_ == "":
+                        abp_ = text[i].split(' ')[0]
 
-                # ищем БП
-                elif not abp == "" and bp == "":
-                    bp = text[i].split(' ')[3]
+                    # ищем БП
+                    elif not abp_ == "" and bp == "":
+                        bp = text[i].split(' ')[3]
 
-                elif not bp == "" and podpr == "":
-                    podpr = text[i].split(' ')[7]
+                    elif not bp == "" and podpr == "":
+                        podpr = text[i].split(' ')[7]
 
-                elif not podpr == "" and spec == "":
-                    spec = text[i].split(' ')[12]
-                    if (text[i].split()[len(text[i].split())-1][-1] in ('1234567890')):
-                        item = i
-                    else:
-                        item = i + 1
+                    elif not podpr == "" and spec == "":
+                        spec = text[i].split(' ')[12]
+                        if (text[i].split()[len(text[i].split())-1][-1] in ('1234567890')):
+                            item = i
+                        else:
+                            item = i + 1
 
-                    for y in range(10, 0, -1):
-                        txt = text[item].split()[len(text[item].split())-y]
-                        try:
-                            sums[10 - y] = float(txt.replace(',', ''))
-                        except:
-                            sums[10 - y] = float(''.join(char for char in txt if char.isdigit() or char == '.'))
-                        itogsums[10-y] = itogsums[10 - y] + sums[10 - y]
+                        for y in range(10, 0, -1):
+                            txt = text[item].split()[len(text[item].split())-y]
+                            try:
+                                sums[10 - y] = float(txt.replace(',', ''))
+                            except:
+                                sums[10 - y] = float(''.join(char for char in txt if char.isdigit() or char == '.'))
+                            itogsums[10-y] = itogsums[10 - y] + sums[10 - y]
 
-                    print(abp + '/' + bp + '/' +    podpr + '/' + spec + '      ', sums)
+                        mass_fkr.append(abp_+'/'+bp+'/'+podpr)
+                        mass_spec.append(spec)
+                        mass_res.append({
+                            "fkr":abp_+'/'+bp+'/'+podpr,
+                            "_fkr_id":0,
+                            "abp": abp_,
+                            "pr":bp,
+                            "ppr":podpr,
+                            "spec":spec,
+                            "_spec_id":0,
+                            "sum":sums
+                        })
+                        
+
+        # ПОИСК В БАЗЕ ДАННЫХ ФКР, ЕСЛИ НЕТ ТО СОЗДАЕМ
+        qset_fkr = f"""SELECT id, code FROM public.dirs_fkr
+                    WHERE code IN {tuple(mass_fkr)}"""
+        with connection.cursor() as cursor:
+                cursor.execute(qset_fkr)
+                columns = [col[0] for col in cursor.description]
+                res_fkr = [dict(zip(columns, row))
+                        for row in cursor.fetchall()]
+
+        for ind, item in enumerate(mass_fkr):
+            find = False
+            for j in res_fkr:
+                if item==j['code']:
+                    find = True 
+                    _fkr_id = j['id']
+                    break
+            if find == False:
+                # search ABP
+                qset = f"""SELECT id FROM public.dirs_abp WHERE code = '{mass_res[ind]['abp']}'"""
+                with connection.cursor() as cursor:
+                    cursor.execute(qset)
+                    res_abp = cursor.fetchall()
+
+                qset = f"""SELECT id FROM public.dirs_program WHERE code like '%{mass_res[ind]['abp'] + '/' + mass_res[ind]['pr']}%'"""
+                with connection.cursor() as cursor:
+                    cursor.execute(qset)
+                    res_bp = cursor.fetchall()
+
+                qset = f"""SELECT id FROM public.dirs_podprogram WHERE code like '%{mass_res[ind]['abp'] + '/' + mass_res[ind]['pr']  + '/' + mass_res[ind]['ppr']}%'"""
+                with connection.cursor() as cursor:
+                    cursor.execute(qset)
+                    res_ppr = cursor.fetchall()
+
+
+                if len(res_abp)==0:
+                    newabp = abp()
+                    newabp.code = mass_res[ind]['abp']
+                    newabp.name_rus = ''
+                    newabp.name_kaz = ''
+                    newabp.save()
+                    _abp_id = newabp.id
+                else:
+                    _abp_id = res_abp[0][0]
+
+                if len(res_bp)==0:
+                    newpr = program()
+                    newpr.code = '01/1/' + mass_res[ind]['abp'] + '/' + mass_res[ind]['pr']
+                    newpr.name_rus = ''
+                    newpr.name_kaz = ''
+                    newpr._abp_id = _abp_id
+                    newpr._funcpodgroup_id = 233
+                    newpr.save()
+                    _pr_id = newpr.id
+                else:
+                    _pr_id = res_bp[0][0]
+
+
+                if len(res_ppr)==0:
+                    newppr = podprogram()
+                    newppr.code = '01/1/' + mass_res[ind]['abp'] + '/' + mass_res[ind]['pr'] + '/' + mass_res[ind]['ppr']
+                    newppr.name_rus = ''
+                    newppr.name_kaz = ''
+                    newppr._abp_id = _abp_id
+                    newppr._funcgroup_id = 32
+                    newppr._funcpodgroup_id = 233
+                    newppr._program_id = _pr_id
+                    newppr.save()
+                    _ppr_id = newppr.id
+                else:
+                    _ppr_id = res_ppr[0][0]
+
+                newfkr = fkr()
+                newfkr.code = mass_res[ind]['abp'] + '/' + mass_res[ind]['pr'] + '/' + mass_res[ind]['ppr']
+                newfkr.name_rus = ''
+                newfkr.name_kaz = ''
+                newfkr._abp_id = _abp_id
+                newfkr._funcgroup_id = 32
+                newfkr._funcpodgroup_id = 233
+                newfkr._program_id = _pr_id
+                newfkr._podprogram_id = _ppr_id
+                newfkr.save()
+                _fkr_id = newfkr.id
+
+            mass_res[ind]['_fkr_id'] = _fkr_id
+            
+            
+    
+        # ПОИСК В БАЗЕ ДАННЫХ СПЕЦИФИК(экр), ЕСЛИ НЕТ ТО СОЗДАЕМ
+        qset_spec = f"""SELECT id, code FROM public.dirs_spec_exp
+                    WHERE code IN {tuple(mass_spec)}"""
+        with connection.cursor() as cursor:
+                cursor.execute(qset_spec)
+                columns = [col[0] for col in cursor.description]
+                res_spec = [dict(zip(columns, row))
+                        for row in cursor.fetchall()]
+        for ind, item in enumerate(mass_spec):
+            find = False
+            for j in res_spec:
+                if item==j['code']:
+                    find = True 
+                    _spec_id = j['id']
+                    break
+            if find == False:
+                newspec = spec_exp()
+                newspec.code = item
+                newspec.name_rus = ''
+                newspec.name_kaz = ''
+                newspec.save()
+                _spec_id = newspec.id
+            
+            mass_res[ind]['_spec_id'] = _spec_id
+    
         
-    print(itogsums)
+        try:
+            with transaction.atomic():
+                date = datetime.strptime(_date, '%d.%m.%Y')
+                try:
+                    org_id = organization.objects.get(codeorg = org_code).id
+                except:
+                    transaction.rollback("Организации с кодом " + org_code + " нет в базе данных или их несколько")
 
-    return HttpResponse('{"status": "данные успешно записаны"}', content_type="application/json", status = 200)
+                try:
+                    budjet_id = budjet.objects.get(code = budjet_code).id
+                except:
+                    budjet_id = 0
+                if budjet_id == 0:
+                    newbjt = budjet()
+                    newbjt.code = budjet_code
+                    newbjt.name_rus = budjet_name
+                    newbjt.name_kaz = budjet_name
+                    newbjt.save()
+                    budjet_id = newbjt.id
+
+                obj420_count = import420.objects.filter(_date = date, _organization_id = org_id).count()
+                if obj420_count > 0:
+                    transaction.rollback("Документ организации " + org_code + " уже загружен датой " + _date)
+
+                count = import420.objects.filter(_organization_id = org_id).count()
+
+
+
+                # СОЗДАНИЕ НОВОГО ДОКУМЕНТА 4-20
+                new420 = import420()
+                new420._date = date
+                new420.nom = str(count+1)
+                new420._organization_id = org_id
+                new420._budjet_id = budjet_id
+                new420.save()
+
+                # Запись табличной части в базу данных
+                mass_lines = []
+                for line in mass_res:
+                    newline = import420_tbl1()
+                    newline._import420_id = new420.id
+                    newline._fkr_id = line['_fkr_id']
+                    newline._spec_id = line['_spec_id']
+                    newline._budjet_id = budjet_id
+                    newline._organization_id = org_id
+                    newline._date = date
+                    for i, sm in enumerate(line['sum']):
+                        setattr(newline, 'sm' + str(i+1), sm)
+                    mass_lines.append(newline)
+                import420_tbl1.objects.bulk_create(mass_lines)
+
+
+            
+        except Exception as e:  
+            errors_txt = errors_txt + e.args[0] + ','
+            errors_txt = errors_txt.replace("'", "")
+            errors_txt = errors_txt.replace("The connection", "")
+            errors_txt = errors_txt.replace(" doesnt exist.", "")
+
+    if errors_txt == "":
+        return HttpResponse('{"status": "данные успешно записаны"}', content_type="application/json", status = 200)
+    else:
+        return HttpResponse('{"status": "' + errors_txt + '"}', content_type="application/json", status = 400)
+    
+
+
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def import420list(request):
+    queryset = import420.objects.order_by('nom')
+    paginator = CustomPagination()
+    paginated_queryset = paginator.paginate_queryset(queryset, request)
+    serial = import_420_serial(paginated_queryset, many = True)
+    return paginator.get_paginated_response(serial.data)
+
+
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def import420item(request, id_doc):
+    qset = import420.objects.get(id = id_doc)
+    serial = import_420_serial(qset, many = False)
+
+    query = f"""with tbl as (SELECT _fkr_id, _spec_id, sm1, sm2, sm3, sm4, sm5, sm6, sm7, sm8, sm9, sm10 FROM public.docs_import420_tbl1
+                                WHERE _import420_id={id_doc}),
+                        fkr as (SELECT id, code as code_fkr, name_rus as name_fkr FROM public.dirs_fkr
+                                    WHERE id in (select _fkr_id from tbl)),
+						spec as (SELECT id, code as code_spec, name_rus as name_spec FROM public.dirs_spec_exp
+                                    WHERE id in (select _spec_id from tbl))
+                select _fkr_id, max(code_fkr) as code_fkr, max(name_fkr) as name_fkr, _spec_id, max(code_spec) as code_spec, max(name_spec) as name_spec, 
+                sum(sm1) as sm1, sum(sm2) as sm2, sum(sm3) as sm3, sum(sm4) as sm4, sum(sm5) as sm5, sum(sm6) as sm6, sum(sm7) as sm7, sum(sm8) as sm8, sum(sm9) as sm9, sum(sm10) as sm10 from tbl
+                left join fkr
+                on tbl._fkr_id = fkr.id
+                left join spec
+                on tbl._spec_id = spec.id
+                group by _fkr_id, _spec_id
+                order by code_fkr, code_spec"""
+
+
+    with connection.cursor() as cursor:
+        cursor.execute(query)
+        columns = [col[0] for col in cursor.description]
+        result = [dict(zip(columns, row))
+            for row in cursor.fetchall()]
+
+    jsondata = {
+                    "doc": serial.data,
+                    "table": result
+                }
+    return response.Response(jsondata)
+
+
 

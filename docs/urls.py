@@ -30,8 +30,18 @@ urlpatterns = [
     path('expgetplanbyclassif', views.expgetplanbyclassif, name='index'),
 
 
+    path('svodexplist', views.svodexplist, name='index'),
+    path('svodexpadd', views.svodexpadd, name='index'),
+    path('svodexpitem/<int:id_doc>', views.svodexpitem, name='index'),
+    path('svodexpitem/<int:id_doc>/add', views.svodexp_add_doc, name='index'),
+    path('svodexpitem/<int:id_doc>/delete', views.svodexp_del_doc, name='index'),
+
+
     path('import219', views.import_219, name='index'), 
     path('import219list', views.import219list, name='index'), 
-    path('import219item/<int:id_doc>', views.import219item, name='index'), 
+    path('import219item/<int:id_doc>', views.import219item, name='index'),  
+
     path('import420', views.import_420, name='index'), 
+    path('import420list', views.import420list, name='index'), 
+    path('import420item/<int:id_doc>', views.import420item, name='index'), 
 ]
