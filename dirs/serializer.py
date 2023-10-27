@@ -38,6 +38,12 @@ class budjetSerializer(serializers.ModelSerializer):
         fields = '__all__'
 
 
+class budjetMinSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = budjet
+        fields = ['id', 'name_rus']
+
+
 class organizationMinSerializer(serializers.ModelSerializer):
     class Meta:
         model = organization
@@ -90,12 +96,11 @@ class loginhistorySerializer(serializers.ModelSerializer):
         fields = '__all__'
 
 
-
-
 class organizationMinSerializer(serializers.ModelSerializer):
+    _budjet = budjetMinSerializer()
     class Meta:
         model = organization
-        fields = ['id', 'name_rus']
+        fields = ['id', 'name_rus', '_budjet']
 
 
 

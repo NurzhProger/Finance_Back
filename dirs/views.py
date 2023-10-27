@@ -254,7 +254,11 @@ def getinfo(request):
         profserial = profileSerializer(qset.profile)
         logs = loginhistory.objects.filter(username = username).order_by('-id')[:5]
         logsserial = loginhistorySerializer(logs, many = True)
-        respon = {"user": userserial.data, "profile": profserial.data, "history":logsserial.data}
+        roles = request.user.groups.all()
+        rolesname = []
+        for itm in roles:
+            rolesname.append(itm.name)
+        respon = {"user": userserial.data, "profile": profserial.data, "history":logsserial.data, "roles":rolesname}
         return response.Response(respon)
     except Exception as err:
         respon = '{"user": "Ошибка сервера"}'

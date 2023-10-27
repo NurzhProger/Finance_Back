@@ -18,13 +18,19 @@ class CustomPagination(pagination.LimitOffsetPagination):
     max_limit = 50     # Максимальное количество объектов на странице
 
 
+
 # ****************************************************************
 # ***Сервисы утвержденного плана финансирования по поступлениям***
 # ****************************************************************
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
 def utvinclist(request):
-    queryset = utv_inc.objects.order_by('nom')
+    a = request.user.groups.filter(name='fulldata').count()
+    if a == 0:
+        id_org = request.user.profile._organization_id
+        queryset = utv_inc.objects.filter(_organization_id = id_org).order_by('nom')
+    else:
+        queryset = utv_inc.objects.order_by('nom')
     paginator = CustomPagination()
     paginated_queryset = paginator.paginate_queryset(queryset, request)
     serial = utv_inc_Serializer(paginated_queryset, many=True)
@@ -102,6 +108,7 @@ def utvincsave(request):
             itemdoc._organization_id = org.id
             itemdoc._budjet_id = org._budjet.id
             itemdoc._date = date_object
+            itemdoc.deleted = False
             itemdoc.save()
 
             # Очищаем предыдущие записи табличной части
@@ -126,7 +133,7 @@ def utvincsave(request):
                     god += sm
                     setattr(newitemtbl1, 'sm' + str(ind), sm)
                 newitemtbl1.god = god
-                # newitemtbl1.save()
+                newitemtbl1.deleted = False
                 rows_save_tbl.append(newitemtbl1)
 
                 reg_new_rec = reg_inc()
@@ -137,8 +144,7 @@ def utvincsave(request):
                 reg_new_rec._budjet_id = itemdoc._budjet_id
                 god = 0
                 for ind in range(1, 13):
-                    sm = itemtbl1['sm'+str(ind)] if not itemtbl1['sm' +
-                                                                 str(ind)] == None else 0
+                    sm = itemtbl1['sm'+str(ind)] if not itemtbl1['sm' + str(ind)] == None else 0
                     god += sm
                     setattr(reg_new_rec, 'sm' + str(ind), sm)
                 reg_new_rec.god = god
@@ -148,44 +154,49 @@ def utvincsave(request):
 
             utv_inc_tbl1.objects.bulk_create(rows_save_tbl)
             reg_inc.objects.bulk_create(rows_save_reg)
+            return response.Response({"status":"Документ успешно записан", "id_doc":itemdoc.id, "nom":itemdoc.nom})
 
     except Exception as e:
         return HttpResponse('{"status": "Ошибка сохранения документа"}', content_type="application/json", status=400)
 
-    # Документ сам (шапка документа)
-    queryset_doc = utv_inc.objects.get(id=itemdoc.id)
-    serialdoc = utv_inc_Serializer(queryset_doc)
-    # табличная часть
-    queryset_tbl1 = utv_inc_tbl1.objects.filter(_utv_inc_id=queryset_doc.id)
-    serial_tbl1 = utv_inc_tbl1_Serializer(queryset_tbl1, many=True)
-
-    # Возвращаем шапку и табличную часть в одном объекте
-    resp = {'doc': serialdoc.data,
-            'tbl1': serial_tbl1.data}
-    return response.Response(resp)
 
 
 @api_view(['DELETE'])
 @permission_classes([IsAuthenticated])
-def utvincdelete(request, id):
-    try:
-        docobj = utv_inc.objects.get(id=id)
-        docobj.deleted = not docobj.deleted
-        docobj.save()
+def utvincdelete(request):
+    req = json.loads(request.body)
+    docs = req['mass_doc_id']
+    shift = req['shift']
+    is_admin = (request.user.groups.filter(name='fulldata').count()>0)
+    if shift and is_admin:
+        try:
+            for id in docs:
+                with transaction.atomic():
+                    utv_inc.objects.get(id=id).delete()
+                    # табличная часть
+                    utv_inc_tbl1.objects.filter(_utv_inc_id=id).delete()
+                    # таблица проводок
+                    reg_inc.objects.filter(_utv_inc_id = id).delete()
+        except:
+            a = 1
+    else:
+        try:
+            for id in docs:
+                with transaction.atomic():
+                    docobj = utv_inc.objects.get(id=id)
+                    docobj.deleted = True
+                    docobj.save()
 
-        # табличная часть
-        tbl1objs = utv_inc_tbl1.objects.filter(_utv_inc_id=docobj.id)
-        for itmtbl1 in tbl1objs:
-            itmtbl1.deleted = not itmtbl1.deleted
-            itmtbl1.save()
-    except:
-        return HttpResponse('{"status": "Ошибка удаления документа"}', content_type="application/json", status=400)
+                    # табличная часть
+                    utv_inc_tbl1.objects.filter(_utv_inc_id=id).update(deleted = True)
+                    # таблица проводок
+                    reg_inc.objects.filter(_utv_inc_id = id).delete()
+        except:
+            a = 1
 
-    queryset = utv_inc.objects.order_by('nom')
-    paginator = CustomPagination()
-    paginated_queryset = paginator.paginate_queryset(queryset, request)
-    serial = utv_inc_Serializer(paginated_queryset, many=True)
-    return paginator.get_paginated_response(serial.data)
+    return response.Response({"status":"успешно"})
+
+
 
 
 # ****************************************************************
@@ -194,7 +205,12 @@ def utvincdelete(request, id):
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
 def izminclist(request):
-    queryset = izm_inc.objects.order_by('nom')
+    a = request.user.groups.filter(name='fulldata').count()
+    if a == 0:
+        id_org = request.user.profile._organization_id
+        queryset = izm_inc.objects.filter(_organization_id = id_org).order_by('nom')
+    else:
+        queryset = izm_inc.objects.order_by('nom')
     paginator = CustomPagination()
     paginated_queryset = paginator.paginate_queryset(queryset, request)
     serial = izm_inc_Serializer(paginated_queryset, many=True)
@@ -262,15 +278,14 @@ def izmincsave(request):
     doc_req = data['doc']
     tbl1_req = data['tbl1']
     org_id = doc_req['_organization']['id']
-    bjt_id = doc_req['_organization']['_budjet']['id']
     doc_id = doc_req['id']
 
     try:
         with transaction.atomic():
             # Запис шапки документа изменения по поступлениям
-            date_object = datetime.strptime(
-                doc_req['_date'], '%d.%m.%Y %H:%M:%S')
+            date_object = datetime.strptime(doc_req['_date'], '%d.%m.%Y %H:%M:%S')
             org = organization.objects.get(id=org_id)
+            bjt_id = org._budjet.id
 
             # Если ИД=0, то создаем новый документ поступления
             if doc_id == 0:
@@ -316,13 +331,13 @@ def izmincsave(request):
                     # Проверка изменения сумм на предыдущие месяцы. Если изменения есть, то отменяем транзакцию и возвращаем ошибку.
                     if ind < date_object.month:
                         if not (sm == 0):
-                            transaction.set_rollback(True)
-                            return HttpResponse('{"status": "Ошибка, нельзя менять предыдущие месяцы!!"}', content_type="application/json", status=400)
+                            transaction.rollback("Ошибка, нельзя менять предыдущие месяцы!")
+                            # return HttpResponse('{"status": "Ошибка, нельзя менять предыдущие месяцы!"}', content_type="application/json", status=400)
                     # Проверка изменения сумм на последующие месяцы. Сумма не должна превышать остатка на текущий месяц.
                     if ind > date_object.month:
                         if (utv + sm) < 0:
-                            transaction.set_rollback(True)
-                            return HttpResponse('{"status": "Ошибка, Сумма больше остатка!!"}', content_type="application/json", status=400)
+                            transaction.rollback("Ошибка, Сумма больше остатка!")
+                            # return HttpResponse('{"status": "Ошибка, Сумма больше остатка!!"}', content_type="application/json", status=400)
 
                     # Если ошибок нет, то заполняем значения своиств за 12 месяцев
                     setattr(newitemtbl1, 'utv' + str(ind), utv)
@@ -350,56 +365,42 @@ def izmincsave(request):
             izm_inc_tbl1.objects.bulk_create(rows_save)
             reg_inc.objects.bulk_create(rows_save_reg)
 
-            list_clasif = ''
+            list_clasif = []
+            list_clasif.append(0)
+            list_clasif.append(0)
             for itm in tbl1_req:
-                if list_clasif == '':
-                    list_clasif = str(itm['_classification']['id'])
-                    continue
-                list_clasif = list_clasif + ', ' + \
-                    str(itm['_classification']['id'])
+                list_clasif.append(itm['_classification']['id'])
 
             date = datetime.strptime(doc_req['_date'], '%d.%m.%Y %H:%M:%S')
-            date_start = datetime.strptime(
-                str(date.year) + "-01-01 00:00:00", '%Y-%m-%d %H:%M:%S')
+            date_start = datetime.strptime(str(date.year) + "-01-01 00:00:00", '%Y-%m-%d %H:%M:%S')
             dateend = date
 
-            query = f"""with 
-                        izm as (SELECT _classification_id,  sum(sm1) as sm1, sum(sm2) as sm2, sum(sm3) as sm3, sum(sm4) as sm4, sum(sm5) as sm5, sum(sm6) as sm6, sum(sm7) as sm7, sum(sm8) as sm8, sum(sm9) as sm9, sum(sm10) as sm10, sum(sm11) as sm11, sum(sm12) as sm12
-                                FROM public.docs_izm_inc_tbl1
-                                where  _izm_inc_id = {doc_id} and  _organization_id = {org_id} and not deleted and _date>='{date_start}' and _date <= '{dateend}' and _classification_id in ({list_clasif})
-                                group by _classification_id),            
-                        sm as (SELECT _classification_id, sum(sm1) as sm1, sum(sm2) as sm2, sum(sm3) as sm3, sum(sm4) as sm4, sum(sm5) as sm5, sum(sm6) as sm6, sum(sm7) as sm7, sum(sm8) as sm8, sum(sm9) as sm9, sum(sm10) as sm10, sum(sm11) as sm11, sum(sm12) as sm12
-                                FROM public.docs_utv_inc_tbl1
-                                where _organization_id = {org_id} and not deleted and _date>='{date_start}' and _date <= '{dateend}' and _classification_id in ({list_clasif})
-                                group by _classification_id),
-                        
-                        union_sm_izm as (select * from sm
-                                            union all
-                                            select * from izm),
-                        classname as (SELECT * FROM public.dirs_classification_income
-                                     WHERE id in ({list_clasif}))
-                    SELECT classname.id as _classification, classname.code as classification_code, classname.name_rus as classification_name,
-                    COALESCE(sum(sm1),0) as sm1,
-					COALESCE(sum(sm1) + sum(sm2),0) as sm2,
-					COALESCE(sum(sm1) + sum(sm2) + sum(sm3),0) as sm3,
-					COALESCE(sum(sm1) + sum(sm2) + sum(sm3) + sum(sm4),0) as sm4,
-					COALESCE(sum(sm1) + sum(sm2) + sum(sm3) + sum(sm4) + sum(sm5),0) as sm5,
-					COALESCE(sum(sm1) + sum(sm2) + sum(sm3) + sum(sm4) + sum(sm5) + sum(sm6),0) as sm6,
-					COALESCE(sum(sm1) + sum(sm2) + sum(sm3) + sum(sm4) + sum(sm5) + sum(sm6) + sum(sm7),0) as sm7,
-					COALESCE(sum(sm1) + sum(sm2) + sum(sm3) + sum(sm4) + sum(sm5) + sum(sm6) + sum(sm7) + sum(sm8),0) as sm8,
-					COALESCE(sum(sm1) + sum(sm2) + sum(sm3) + sum(sm4) + sum(sm5) + sum(sm6) + sum(sm7) + sum(sm8) + sum(sm9),0) as sm9,
-					COALESCE(sum(sm1) + sum(sm2) + sum(sm3) + sum(sm4) + sum(sm5) + sum(sm6) + sum(sm7) + sum(sm8) + sum(sm9) + sum(sm10),0) as sm10,
-					COALESCE(sum(sm1) + sum(sm2) + sum(sm3) + sum(sm4) + sum(sm5) + sum(sm6) + sum(sm7) + sum(sm8) + sum(sm9) + sum(sm10) + sum(sm11),0) as sm11,
-					COALESCE(sum(sm1) + sum(sm2) + sum(sm3) + sum(sm4) + sum(sm5) + sum(sm6) + sum(sm7) + sum(sm8) + sum(sm9) + sum(sm10) + sum(sm11) + sum(sm12),0) as sm12
-                    FROM union_sm_izm
-                    RIGHT JOIN classname
-                    ON _classification_id = classname.id
-                    GROUP BY _classification, classification_code, classification_name
-                    ORDER BY _classification"""
+            query = f"""with reg as (SELECT _classification_id, sum(sm1) as sm1, sum(sm2) as sm2, sum(sm3) as sm3, sum(sm4) as sm4, sum(sm5) as sm5, sum(sm6) as sm6, sum(sm7) as sm7, sum(sm8) as sm8, sum(sm9) as sm9, sum(sm10) as sm10, sum(sm11) as sm11, sum(sm12) as sm12
+                                    FROM public.docs_reg_inc
+                                    WHERE _classification_id in {tuple(list_clasif)} and  _organization_id = 1 and _date>='{date_start}' and _date <= '{dateend}'
+                                    group by _classification_id),        
+                            classname as (SELECT * FROM public.dirs_classification_income
+                                    WHERE id in (select _classification_id from reg))
+                            SELECT classname.id as _classification, classname.code as classification_code, classname.name_rus as classification_name,
+                                COALESCE(sum(sm1),0) as sm1,
+                                COALESCE(sum(sm1) + sum(sm2),0) as sm2,
+                                COALESCE(sum(sm1) + sum(sm2) + sum(sm3),0) as sm3,
+                                COALESCE(sum(sm1) + sum(sm2) + sum(sm3) + sum(sm4),0) as sm4,
+                                COALESCE(sum(sm1) + sum(sm2) + sum(sm3) + sum(sm4) + sum(sm5),0) as sm5,
+                                COALESCE(sum(sm1) + sum(sm2) + sum(sm3) + sum(sm4) + sum(sm5) + sum(sm6),0) as sm6,
+                                COALESCE(sum(sm1) + sum(sm2) + sum(sm3) + sum(sm4) + sum(sm5) + sum(sm6) + sum(sm7),0) as sm7,
+                                COALESCE(sum(sm1) + sum(sm2) + sum(sm3) + sum(sm4) + sum(sm5) + sum(sm6) + sum(sm7) + sum(sm8),0) as sm8,
+                                COALESCE(sum(sm1) + sum(sm2) + sum(sm3) + sum(sm4) + sum(sm5) + sum(sm6) + sum(sm7) + sum(sm8) + sum(sm9),0) as sm9,
+                                COALESCE(sum(sm1) + sum(sm2) + sum(sm3) + sum(sm4) + sum(sm5) + sum(sm6) + sum(sm7) + sum(sm8) + sum(sm9) + sum(sm10),0) as sm10,
+                                COALESCE(sum(sm1) + sum(sm2) + sum(sm3) + sum(sm4) + sum(sm5) + sum(sm6) + sum(sm7) + sum(sm8) + sum(sm9) + sum(sm10) + sum(sm11),0) as sm11,
+                                COALESCE(sum(sm1) + sum(sm2) + sum(sm3) + sum(sm4) + sum(sm5) + sum(sm6) + sum(sm7) + sum(sm8) + sum(sm9) + sum(sm10) + sum(sm11) + sum(sm12),0) as sm12
+                            FROM reg
+                            LEFT JOIN classname ON reg._classification_id = classname.id
+                            GROUP BY _classification, classification_code, classification_name
+                            ORDER BY _classification"""
 
             with connection.cursor() as cursor:
                 cursor.execute(query)
-                # asd = cursor.fetchall()
                 columns = [col[0] for col in cursor.description]
                 result = [dict(zip(columns, row))
                           for row in cursor.fetchall()]
@@ -411,10 +412,13 @@ def izmincsave(request):
                         err = True
 
             if (err):
-                transaction.set_rollback(True)
-                return HttpResponse('{"status": "Ошибка сохранения документа. Проверьте введенные суммы!"}', content_type="application/json", status=400)
+                transaction.rollback("Ошибка сохранения документа. Проверьте введенные суммы!")
+                # return HttpResponse('{"status": "Ошибка сохранения документа. Проверьте введенные суммы!"}', content_type="application/json", status=400)
 
-            return HttpResponse('{"status": "Документ успешно сохранен №' + str(itemdoc.nom) + '"}', content_type="application/json", status=200)
+            resjson = {'status':'Документ успешно сохранен №' + str(itemdoc.nom),
+                        'id_doc':itemdoc.id,
+                        'nom':itemdoc.nom}
+            return response.Response(resjson)
     except Exception as e:
         response_data = {
             "status": e.args[0]
@@ -424,25 +428,26 @@ def izmincsave(request):
 
 @api_view(['DELETE'])
 @permission_classes([IsAuthenticated])
-def izmincdelete(request, id):
-    try:
-        docobj = izm_inc.objects.get(id=id)
-        # docobj.deleted = not docobj.deleted
-        docobj.delete()
-
-        # табличная часть
-        tbl1objs = izm_inc_tbl1.objects.filter(_izm_inc_id=id)
-        for itmtbl1 in tbl1objs:
-            # itmtbl1.deleted = docobj.deleted
-            itmtbl1.delete()
-    except:
-        return HttpResponse('{"status": "Ошибка удаления документа"}', content_type="application/json", status=400)
-
-    queryset = izm_inc.objects.order_by('nom')
-    paginator = CustomPagination()
-    paginated_queryset = paginator.paginate_queryset(queryset, request)
-    serial = izm_inc_Serializer(paginated_queryset, many=True)
-    return paginator.get_paginated_response(serial.data)
+def izmincdelete(request):
+    req = json.loads(request.body)
+    docs = req['mass_doc_id']
+    shift = req['shift']
+    is_admin = (request.user.groups.filter(name='fulldata').count()>0)
+    if shift and is_admin:
+        for id in docs:
+            try:
+                with transaction.atomic():
+                    docobj = izm_inc.objects.get(id=id)
+                    docobj.delete()
+                    izm_inc_tbl1.objects.filter(_izm_inc_id=id).delete()
+            except: a = 1
+    else:
+        for id in docs:
+            try:
+                izm_inc.objects.filter(id=id).update(deleted = True)
+                izm_inc_tbl1.objects.filter(_izm_inc_id=id).update(deleted = True)
+            except: a = 1
+    return response.Response({"status":"ok"})
 
 
 @api_view(['GET'])
@@ -484,13 +489,21 @@ def incgetplanbyclassif(request):
     return HttpResponse(json.dumps(obj), content_type="application/json")
 
 
+
+
 # ****************************************************************
 # ***Сервисы утвержденного плана финансирования по расходам***
 # ****************************************************************
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
 def utvexplist(request):
-    queryset = utv_exp.objects.order_by('nom')
+    a = request.user.groups.filter(name='fulldata').count()
+    if a == 0:
+        id_org = request.user.profile._organization_id
+        queryset = utv_exp.objects.filter(_organization_id = id_org).order_by('nom')
+    else:
+        queryset = utv_exp.objects.order_by('nom')
+    # queryset = utv_exp.objects.order_by('nom')
     paginator = CustomPagination()
     paginated_queryset = paginator.paginate_queryset(queryset, request)
     serial = utv_exp_Serializer(paginated_queryset, many=True)
@@ -755,13 +768,21 @@ def utvexpdelete(request, id):
     return paginator.get_paginated_response(serial.data)
 
 
+
+
 # ****************************************************************
 # ***Сервисы изменения плана***
 # ****************************************************************
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
 def izmexplist(request):
-    queryset = izm_exp.objects.order_by('nom')
+    a = request.user.groups.filter(name='fulldata').count()
+    if a == 0:
+        id_org = request.user.profile._organization_id
+        queryset = izm_exp.objects.filter(_organization_id = id_org).order_by('nom')
+    else:
+        queryset = izm_exp.objects.order_by('nom')
+    # queryset = izm_exp.objects.order_by('nom')
     paginator = CustomPagination()
     paginated_queryset = paginator.paginate_queryset(queryset, request)
     serial = izm_exp_serial(paginated_queryset, many=True)
@@ -1234,13 +1255,20 @@ def expgetplanbyclassif(request):
 
 
 
+
 # ****************************************************************
 # ***Сервисы документа свода по расходам***
 # ****************************************************************
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
 def svodexplist(request):
-    queryset = svod_exp.objects.order_by('nom')
+    a = request.user.groups.filter(name='fulldata').count()
+    if a == 0:
+        id_org = request.user.profile._organization_id
+        queryset = svod_exp.objects.filter(_organization_id = id_org).order_by('nom')
+    else:
+        queryset = svod_exp.objects.order_by('nom')
+    # queryset = svod_exp.objects.order_by('nom')
     paginator = CustomPagination()
     paginated_queryset = paginator.paginate_queryset(queryset, request)
     serial = svod_exp_list_serial(paginated_queryset, many=True)
@@ -1263,7 +1291,7 @@ def svodexpadd(request):
     doc._date = datetime.strptime(data['_date'], '%d.%m.%Y %H:%M:%S')
     doc._organization_id = data['_organization']['id']
     doc.save()
-    return HttpResponse(json.dumps({"status": "Успешно записан", "doc_id":doc.id}), content_type="application/json", status=200)
+    return HttpResponse(json.dumps({"status": "Успешно записан", "doc_id":doc.id, "nom":doc.nom}), content_type="application/json", status=200)
 
 
 @api_view(['GET'])
@@ -1323,9 +1351,39 @@ def svodexp_del_doc(request, id_doc):
 
 
 
+@api_view(['DELETE'])
+@permission_classes([IsAuthenticated])
+def svodexpdelete(request):
+    req = json.loads(request.body)
+    docs = req['mass_doc_id']
+    shift = req['shift']
+    is_admin = (request.user.groups.filter(name='fulldata').count()>0)
+    if shift and is_admin:
+        try:
+            with transaction.atomic():
+                for id_doc in docs:
+                    tbldel = svod_exp_tbl.objects.filter(_svod_exp_id=id_doc)
+                    for item in tbldel:
+                        item.delete()
+                    docdel = svod_exp.objects.get(id=id_doc)
+                    docdel.delete()   
+        except Exception as err:
+            a = 1
+    else:
+        try:
+            with transaction.atomic():
+                for id_doc in docs:
+                    tbldel = svod_exp_tbl.objects.filter(_svod_exp_id=id_doc)
+                    for item in tbldel:
+                        item.deleted = True
+                        item.save()
+                    docdel = svod_exp.objects.get(id=id_doc)
+                    docdel.deleted = True
+                    docdel.save()   
+        except Exception as err:
+            a = 1
 
-
-
+    return response.Response({"status":"успешно"})
 
 
 
@@ -1559,16 +1617,20 @@ def import_219(request):
     return HttpResponse('{"status": "данные успешно записаны"}', content_type="application/json", status = 200)
 
 
-
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
 def import219list(request):
+    a = request.user.groups.filter(name='fulldata').count()
+    if a == 0:
+        id_org = request.user.profile._organization_id
+        queryset = import219.objects.filter(_organization_id = id_org).order_by('nom')
+    else:
+        queryset = import219.objects.order_by('nom')
     queryset = import219.objects.order_by('nom')
     paginator = CustomPagination()
     paginated_queryset = paginator.paginate_queryset(queryset, request)
     serial = import_219_serial(paginated_queryset, many = True)
     return paginator.get_paginated_response(serial.data)
-
 
 
 @api_view(['GET'])
@@ -1601,6 +1663,41 @@ def import219item(request, id_doc):
                     "table": result
                 }
     return response.Response(jsondata)
+
+
+@api_view(['DELETE'])
+@permission_classes([IsAuthenticated])
+def import219delete(request):
+    req = json.loads(request.body)
+    docs = req['mass_doc_id']
+    shift = req['shift']
+    is_admin = (request.user.groups.filter(name='fulldata').count()>0)
+    if shift and is_admin:
+        try:
+            with transaction.atomic():
+                for id_doc in docs:
+                    tbldel = import219_tbl1.objects.filter(_import219_id=id_doc)
+                    for item in tbldel:
+                        item.delete()
+                    docdel = import219.objects.get(id=id_doc)
+                    docdel.delete()   
+        except Exception as err:
+            a = 1
+    else:
+        try:
+            with transaction.atomic():
+                for id_doc in docs:
+                    tbldel = import219_tbl1.objects.filter(_import219_id=id_doc)
+                    for item in tbldel:
+                        item.deleted = True
+                        item.save()
+                    docdel = import219.objects.get(id=id_doc)
+                    docdel.deleted = True
+                    docdel.save()   
+        except Exception as err:
+            a = 1
+
+    return response.Response({"status":"успешно"})
 
 
 
@@ -1903,17 +2000,20 @@ def import_420(request):
         return HttpResponse('{"status": "' + errors_txt + '"}', content_type="application/json", status = 400)
     
 
-
-
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
 def import420list(request):
-    queryset = import420.objects.order_by('nom')
+    a = request.user.groups.filter(name='fulldata').count()
+    if a == 0:
+        id_org = request.user.profile._organization_id
+        queryset = import420.objects.filter(_organization_id = id_org).order_by('nom')
+    else:
+        queryset = import420.objects.order_by('nom')
+    # queryset = import420.objects.order_by('nom')
     paginator = CustomPagination()
     paginated_queryset = paginator.paginate_queryset(queryset, request)
     serial = import_420_serial(paginated_queryset, many = True)
     return paginator.get_paginated_response(serial.data)
-
 
 
 @api_view(['GET'])
@@ -1949,6 +2049,40 @@ def import420item(request, id_doc):
                     "table": result
                 }
     return response.Response(jsondata)
+
+
+@api_view(['DELETE'])
+@permission_classes([IsAuthenticated])
+def import420delete(request):
+    req = json.loads(request.body)
+    docs = req['mass_doc_id']
+    shift = req['shift']
+    is_admin = (request.user.groups.filter(name='fulldata').count()>0)
+    if shift and is_admin:
+        try:
+            with transaction.atomic():
+                for id_doc in docs:
+                    tbldel = import420_tbl1.objects.filter(_import420_id=id_doc).delete()
+                    docdel = import420.objects.get(id=id_doc)
+                    docdel.delete()   
+        except Exception as err:
+            a = 1
+    else:
+        try:
+            with transaction.atomic():
+                for id_doc in docs:
+                    tbldel = import420_tbl1.objects.filter(_import420_id=id_doc).update(deleted=True)
+                    # for item in tbldel:
+                    #     item.deleted = True
+                    #     item.save()
+                    docdel = import420.objects.get(id=id_doc)
+                    docdel.deleted = True
+                    docdel.save()   
+        except Exception as err:
+            a = 1
+
+    return response.Response({"status":"успешно"})
+
 
 
 

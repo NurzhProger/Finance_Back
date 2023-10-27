@@ -6,7 +6,7 @@ from dirs.serializer import *
 class utv_inc_Serializer(serializers.ModelSerializer):
     # org_name = serializers.CharField(source = '_organization.name_rus')
     # budjet_name = serializers.CharField(source = '_budjet.name_kaz')
-    _organization = organizationSerializer()
+    _organization = organizationMinSerializer()
     _date = serializers.DateTimeField(format='%d.%m.%Y %H:%M:%S')
     class Meta:
         model = utv_inc
