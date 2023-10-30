@@ -45,7 +45,7 @@ class izm_inc_tbl1_Serializer(serializers.ModelSerializer):
 
 
 class utv_exp_Serializer(serializers.ModelSerializer):
-    _organization = organizationSerializer()
+    _organization = organizationMinSerializer()
     _date = serializers.DateTimeField(format='%d.%m.%Y %H:%M:%S')
     class Meta:
         model = utv_exp

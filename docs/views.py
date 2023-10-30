@@ -321,12 +321,9 @@ def izmincsave(request):
                 newitemtbl1._date = date_object
 
                 for ind in range(1, 13):
-                    utv = itemtbl1['utv' +
-                                   str(ind)] if not itemtbl1['utv' + str(ind)] == None else 0
-                    sm = itemtbl1['sm' +
-                                  str(ind)] if not itemtbl1['sm' + str(ind)] == None else 0
-                    itog = itemtbl1['itog' +
-                                    str(ind)] if not itemtbl1['itog' + str(ind)] == None else 0
+                    utv = itemtbl1['utv' + str(ind)] if not itemtbl1['utv' + str(ind)] == None else 0
+                    sm = itemtbl1['sm' + str(ind)] if not itemtbl1['sm' + str(ind)] == None else 0
+                    itog = itemtbl1['itog' + str(ind)] if not itemtbl1['itog' + str(ind)] == None else 0
 
                     # Проверка изменения сумм на предыдущие месяцы. Если изменения есть, то отменяем транзакцию и возвращаем ошибку.
                     if ind < date_object.month:
@@ -354,8 +351,7 @@ def izmincsave(request):
                 reg_new_rec._budjet_id = bjt_id
                 god = 0
                 for ind in range(1, 13):
-                    sm = itemtbl1['sm'+str(ind)] if not itemtbl1['sm' +
-                                                                 str(ind)] == None else 0
+                    sm = itemtbl1['sm'+str(ind)] if not itemtbl1['sm' + str(ind)] == None else 0
                     god += sm
                     setattr(reg_new_rec, 'sm' + str(ind), sm)
                 reg_new_rec.god = god
@@ -377,7 +373,7 @@ def izmincsave(request):
 
             query = f"""with reg as (SELECT _classification_id, sum(sm1) as sm1, sum(sm2) as sm2, sum(sm3) as sm3, sum(sm4) as sm4, sum(sm5) as sm5, sum(sm6) as sm6, sum(sm7) as sm7, sum(sm8) as sm8, sum(sm9) as sm9, sum(sm10) as sm10, sum(sm11) as sm11, sum(sm12) as sm12
                                     FROM public.docs_reg_inc
-                                    WHERE _classification_id in {tuple(list_clasif)} and  _organization_id = 1 and _date>='{date_start}' and _date <= '{dateend}'
+                                    WHERE _classification_id in {tuple(list_clasif)} and  _organization_id = {org_id} and _date>='{date_start}' and _date <= '{dateend}'
                                     group by _classification_id),        
                             classname as (SELECT * FROM public.dirs_classification_income
                                     WHERE id in (select _classification_id from reg))
@@ -396,8 +392,7 @@ def izmincsave(request):
                                 COALESCE(sum(sm1) + sum(sm2) + sum(sm3) + sum(sm4) + sum(sm5) + sum(sm6) + sum(sm7) + sum(sm8) + sum(sm9) + sum(sm10) + sum(sm11) + sum(sm12),0) as sm12
                             FROM reg
                             LEFT JOIN classname ON reg._classification_id = classname.id
-                            GROUP BY _classification, classification_code, classification_name
-                            ORDER BY _classification"""
+                            GROUP BY _classification, classification_code, classification_name"""
 
             with connection.cursor() as cursor:
                 cursor.execute(query)
@@ -413,7 +408,6 @@ def izmincsave(request):
 
             if (err):
                 transaction.rollback("Ошибка сохранения документа. Проверьте введенные суммы!")
-                # return HttpResponse('{"status": "Ошибка сохранения документа. Проверьте введенные суммы!"}', content_type="application/json", status=400)
 
             resjson = {'status':'Документ успешно сохранен №' + str(itemdoc.nom),
                         'id_doc':itemdoc.id,
@@ -463,28 +457,77 @@ def incgetplanbyclassif(request):
     date = None
     if not strdate == None:
         date = datetime.strptime(strdate, "%d.%m.%Y %H:%M:%S")
+    start_of_year = date.replace(month=1, day=1, hour=0, minute=0, second=0)
 
     # Получаем остатки сумм плана (фильры по организации - обязательно, дата, классификация)
-    data = getincplanbyclassif(_organization, date=date,
-                               _classification_id=_classification)
+    # data = getincplanbyclassif(_organization, date=date, _classification_id=_classification)
+
+    query = f"""with reg as (SELECT _classification_id, sum(sm1) as sm1, sum(sm2) as sm2, sum(sm3) as sm3, sum(sm4) as sm4, sum(sm5) as sm5, sum(sm6) as sm6, sum(sm7) as sm7, sum(sm8) as sm8, sum(sm9) as sm9, sum(sm10) as sm10, sum(sm11) as sm11, sum(sm12) as sm12
+                                    FROM public.docs_reg_inc
+                                    WHERE _classification_id = {_classification} and  _organization_id = {_organization} and _date>='{start_of_year}' and _date <= '{date}'
+                                    group by _classification_id),        
+                            classname as (SELECT * FROM public.dirs_classification_income
+                                    WHERE id ={_classification})
+                            SELECT classname.id as _classification, max(classname.code) as classification_code, max(classname.name_rus) as classification_name,
+                                COALESCE(sum(sm1), 0) as sm1,
+                                COALESCE(sum(sm2),0) as sm2,
+                                COALESCE(sum(sm3),0) as sm3,
+                                COALESCE(sum(sm4),0) as sm4,
+                                COALESCE(sum(sm5),0) as sm5,
+                                COALESCE(sum(sm6),0) as sm6,
+                                COALESCE(sum(sm7),0) as sm7,
+                                COALESCE(sum(sm8),0) as sm8,
+                                COALESCE(sum(sm9),0) as sm9,
+                                COALESCE(sum(sm10),0) as sm10,
+                                COALESCE(sum(sm11),0) as sm11,
+                                COALESCE(sum(sm12),0) as sm12,
+                                COALESCE(sum(sm1) + sum(sm2) + sum(sm3) + sum(sm4) + sum(sm5) + sum(sm6) + sum(sm7) + sum(sm8) + sum(sm9) + sum(sm10) + sum(sm11) + sum(sm12),0) as god
+                            FROM reg
+                            LEFT JOIN classname ON reg._classification_id = classname.id
+                            GROUP BY _classification"""
+
+    with connection.cursor() as cursor:
+        cursor.execute(query)
+        columns = [col[0] for col in cursor.description]
+        data = [dict(zip(columns, row))
+                for row in cursor.fetchall()]
+
     if len(data) > 0:
         res = data[0]
+        obj = {
+            "id": 0,
+            "_classification": {
+                "id": res['_classification'],
+                "name_kaz": res['classification_name'],
+                "name_rus": res['classification_name'],
+                "code": res['classification_code']
+            },
+            "_date": "", 
+            "deleted": False, 
+            "utvgod": 0, 
+            "god": res['god'], 
+            "itoggod": 0
+        }
 
-    obj = {
-        "id": 0,
-        "_classification": {
-            "id": res['_classification'],
-            "name_kaz": res['classification_name'],
-            "name_rus": res['classification_name'],
-            "code": res['classification_code']
-        },
-        "_date": "", "deleted": False, "utvgod": 0, "god": 0, "itoggod": 0
-    }
-
-    for ind in range(1, 13):
-        obj["utv" + str(ind)] = res["utv" + str(ind)]
-        obj["sm" + str(ind)] = res["sm" + str(ind)]
-        obj["itog" + str(ind)] = res["itog" + str(ind)]
+        for ind in range(1, 13):
+            obj["utv" + str(ind)] = res["sm" + str(ind)]
+            obj["sm" + str(ind)] = 0
+            obj["itog" + str(ind)] = 0
+    else:
+        obj = {
+            "id": 0,
+            "_classification": {
+                "id": 0,
+                "name_kaz": '',
+                "name_rus": '',
+                "code": ''
+            },
+            "_date": "", 
+            "deleted": False, 
+            "utvgod": 0, 
+            "god": 0, 
+            "itoggod": 0
+        }
 
     return HttpResponse(json.dumps(obj), content_type="application/json")
 
@@ -547,18 +590,109 @@ def utvexpitem(request, id):
     queryset_doc = utv_exp.objects.get(id=id)
     serialdoc = utv_exp_Serializer(queryset_doc)
 
-    # табличная часть платежи
-    queryset_paym = utv_exp_pay.objects.filter(_utv_exp_id=queryset_doc.id)
-    serial_paym = utv_exp_paymentserial(queryset_paym, many=True)
 
-    # табличная часть платежи
-    queryset_oblig = utv_exp_obl.objects.filter(_utv_exp_id=queryset_doc.id)
-    serial_oblig = utv_exp_obligatserial(queryset_oblig, many=True)
+    # Получаем запросом таблицу по платежам
+    query = f"""with tbl as (SELECT * FROM public.docs_utv_exp_pay where _utv_exp_id = {id}),        
+                     fkr as (SELECT * FROM public.dirs_fkr WHERE id in (select _fkr_id from tbl)),
+                     spec as (SELECT * FROM public.dirs_spec_exp WHERE id in (select _spec_id from tbl))
+                SELECT tbl.id, fkr.id as fkr_id, fkr.code as fkr_code, fkr.name_rus as fkr_name, spec.id as spec_id, spec.code as spec_code, spec.name_rus as spec_name,
+                    sm1,sm2,sm3,sm4,sm5,sm6,sm7,sm8,sm9,sm10,sm11,sm12, false as deleted
+                FROM tbl
+                left JOIN fkr
+                ON tbl._fkr_id = fkr.id
+                left JOIN spec
+                ON tbl._spec_id = spec.id
+                ORDER BY tbl.id"""
+    data = []
+    with connection.cursor() as cursor:
+        cursor.execute(query)
+        columns = [col[0] for col in cursor.description]
+        data = [dict(zip(columns, row))
+                for row in cursor.fetchall()]
+
+    payment = []
+    for item in data:
+        jsonobj = {
+            "id": item['id'],
+            "_fkr": {
+                "id": item['fkr_id'],
+                "code": item['fkr_code'],
+                "name_rus": item['fkr_name']
+            },
+            "_spec": {
+                "id": item['spec_id'],
+                "code": item['spec_code'],
+                "name_rus": item['spec_name']
+            },
+            "sm1":item['sm1'],
+            "sm2":item['sm2'],
+            "sm3":item['sm3'],
+            "sm4":item['sm4'],
+            "sm5":item['sm5'],
+            "sm6":item['sm6'],
+            "sm7":item['sm7'],
+            "sm8":item['sm8'],
+            "sm9":item['sm9'],
+            "sm10":item['sm10'],
+            "sm11":item['sm11'],
+            "sm12":item['sm12'],
+        }
+        payment.append(jsonobj)
+
+
+    # Получаем запросом таблицу по обязательствам
+    query = f"""with tbl as (SELECT * FROM public.docs_utv_exp_obl where _utv_exp_id = {id}),        
+                     fkr as (SELECT * FROM public.dirs_fkr WHERE id in (select _fkr_id from tbl)),
+                     spec as (SELECT * FROM public.dirs_spec_exp WHERE id in (select _spec_id from tbl))
+                SELECT tbl.id, fkr.id as fkr_id, fkr.code as fkr_code, fkr.name_rus as fkr_name, spec.id as spec_id, spec.code as spec_code, spec.name_rus as spec_name,
+                    sm1,sm2,sm3,sm4,sm5,sm6,sm7,sm8,sm9,sm10,sm11,sm12, false as deleted
+                FROM tbl
+                left JOIN fkr
+                ON tbl._fkr_id = fkr.id
+                left JOIN spec
+                ON tbl._spec_id = spec.id
+                ORDER BY tbl.id"""
+    data = []
+    with connection.cursor() as cursor:
+        cursor.execute(query)
+        columns = [col[0] for col in cursor.description]
+        data = [dict(zip(columns, row))
+                for row in cursor.fetchall()]
+
+    obligats = []
+    for item in data:
+        jsonobj = {
+            "id": item['id'],
+            "_fkr": {
+                "id": item['fkr_id'],
+                "code": item['fkr_code'],
+                "name_rus": item['fkr_name']
+            },
+            "_spec": {
+                "id": item['spec_id'],
+                "code": item['spec_code'],
+                "name_rus": item['spec_name']
+            },
+            "sm1":item['sm1'],
+            "sm2":item['sm2'],
+            "sm3":item['sm3'],
+            "sm4":item['sm4'],
+            "sm5":item['sm5'],
+            "sm6":item['sm6'],
+            "sm7":item['sm7'],
+            "sm8":item['sm8'],
+            "sm9":item['sm9'],
+            "sm10":item['sm10'],
+            "sm11":item['sm11'],
+            "sm12":item['sm12'],
+        }
+        obligats.append(jsonobj)
+
 
     # Возвращаем шапку и табличную часть в одном объекте
     resp = {'doc': serialdoc.data,
-            'payments': serial_paym.data,
-            'obligats': serial_oblig.data,
+            'payments': payment,
+            'obligats': obligats,
             }
     return response.Response(resp)
 
@@ -574,17 +708,15 @@ def utvexpsave(request):
 
     for itemtbl1 in payments:
         for ind in range(1, 13):
-            sm = itemtbl1['sm' +
-                          str(ind)] if not itemtbl1['sm' + str(ind)] == None else 0
+            sm = itemtbl1['sm' + str(ind)] if not itemtbl1['sm' + str(ind)] == None else 0
             if sm < 0:
-                return HttpResponse('{"status": "Сумма в утвержденном плане не должна быть меньше 0"}', content_type="application/json", status=400)
+                return HttpResponse('{"status": "Сумма в утвержденном плане (платежи) не должна быть меньше 0"}', content_type="application/json", status=400)
 
     for itemtbl1 in obligs:
         for ind in range(1, 13):
-            sm = itemtbl1['sm' +
-                          str(ind)] if not itemtbl1['sm' + str(ind)] == None else 0
+            sm = itemtbl1['sm' + str(ind)] if not itemtbl1['sm' + str(ind)] == None else 0
             if sm < 0:
-                return HttpResponse('{"status": "Сумма в утвержденном плане не должна быть меньше 0"}', content_type="application/json", status=400)
+                return HttpResponse('{"status": "Сумма в утвержденном плане (обязательства) не должна быть меньше 0"}', content_type="application/json", status=400)
 
     try:
         with transaction.atomic():
@@ -592,21 +724,18 @@ def utvexpsave(request):
             doc_id = doc_req['id']
             org = organization.objects.get(id=doc_req['_organization']['id'])
             budjet_id = org._budjet.id
-            date_object = datetime.strptime(
-                doc_req['_date'], '%d.%m.%Y %H:%M:%S')
+            date_object = datetime.strptime(doc_req['_date'], '%d.%m.%Y %H:%M:%S')
 
             if doc_req['id'] == 0:
                 year = date_object.year
-                doc_list = utv_exp.objects.filter(
-                    _date__year=year, _organization=org.id)
+                doc_list = utv_exp.objects.filter(_date__year=year, _organization=org.id)
                 correct = True
                 for itemdoc in doc_list:
                     if not itemdoc.deleted:
                         correct = False
 
                 if not correct:
-                    transaction.set_rollback(True)
-                    return HttpResponse('{"status": "Утвержденный план на этот год уже имеется. Удалите предыдущий документ!"}', content_type="application/json", status=400)
+                    transaction.rollback('Утвержденный план на этот год уже имеется. Удалите предыдущий документ!')
 
                 itemdoc = utv_exp()
                 itemdoc.nom = str(doc_list.count() + 1) + '-' + org.bin
@@ -616,8 +745,10 @@ def utvexpsave(request):
             itemdoc._organization_id = org.id
             itemdoc._budjet_id = budjet_id
             itemdoc._date = date_object
+            itemdoc.deleted = False
             itemdoc.save()
             # -----------конец записи шапки документа-----------------------------
+
 
             # Начало записи табличных частей документа
             # Очищаем предыдущие записи табличной части
@@ -644,10 +775,9 @@ def utvexpsave(request):
                 newitemtbl1._spec_id = itemtbl1['_spec']['id']
                 newitemtbl1._organization_id = org.id
                 newitemtbl1._date = date_object
-                newitemtbl1.god = itemtbl1['god']
+                # newitemtbl1.god = itemtbl1['god']
                 for ind in range(1, 13):
-                    sm = itemtbl1['sm' +
-                                  str(ind)] if not itemtbl1['sm' + str(ind)] == None else 0
+                    sm = itemtbl1['sm' + str(ind)] if not itemtbl1['sm' + str(ind)] == None else 0
                     setattr(newitemtbl1, 'sm' + str(ind), sm)
                 izm_exp_pay_list.append(newitemtbl1)
 
@@ -658,7 +788,7 @@ def utvexpsave(request):
                 newregrec._organization_id = org.id
                 newregrec._budjet_id = org._budjet.id
                 newregrec._date = date_object
-                newregrec.god = itemtbl1['god']
+                # newregrec.god = itemtbl1['god']
                 god = 0
                 for ind in range(1, 13):
                     sm = itemtbl1['sm' +
@@ -667,6 +797,7 @@ def utvexpsave(request):
                     setattr(newregrec, 'sm' + str(ind), sm)
                 newregrec.god = god
                 reg_exp_pay_list.append(newregrec)
+
 
             for itemtbl1 in obligs:
                 if (itemtbl1['_fkr']['id'] == 0):
@@ -677,7 +808,7 @@ def utvexpsave(request):
                 newitemtbl1._spec_id = itemtbl1['_spec']['id']
                 newitemtbl1._organization_id = org.id
                 newitemtbl1._date = date_object
-                newitemtbl1.god = itemtbl1['god']
+                # newitemtbl1.god = itemtbl1['god']
                 for ind in range(1, 13):
                     sm = itemtbl1['sm' +
                                   str(ind)] if not itemtbl1['sm' + str(ind)] == None else 0
@@ -726,8 +857,7 @@ def utvexpsave(request):
                           for row in cursor.fetchall()]
 
             if len(result) > 0:
-                transaction.set_rollback(
-                    True, "Суммы платежей и обязательства не совпадают")
+                transaction.rollback("Суммы платежей и обязательства не совпадают")
 
             return HttpResponse('{"status": "Успешно записан документ"}', content_type="application/json")
 
@@ -741,32 +871,25 @@ def utvexpsave(request):
 @api_view(['DELETE'])
 @permission_classes([IsAuthenticated])
 def utvexpdelete(request, id):
+
     try:
-        docobj = utv_exp.objects.get(id=id)
-        docobj.deleted = not docobj.deleted
+        with transaction.atomic():
+            docobj = utv_exp.objects.get(id=id)
+            znach = docobj.deleted
+            docobj.deleted = not znach
+            docobj.save()
 
-        # табличная часть
-        payms = utv_exp_pay.objects.filter(_utv_exp_id=docobj.id)
-        for itmtbl1 in payms:
-            # itmtbl1.deleted = docobj.deleted
-            itmtbl1.delete()
+            utv_exp_pay.objects.filter(_utv_exp_id=docobj.id).update(deleted = not znach)
+            utv_exp_obl.objects.filter(_utv_exp_id=docobj.id).update(deleted = not znach)
 
-        # табличная часть
-        obligs = utv_exp_obl.objects.filter(_utv_exp_id=docobj.id)
-        for itmtbl1 in obligs:
-            # itmtbl1.deleted = docobj.deleted
-            itmtbl1.delete()
 
-        docobj.delete()
+            del_pay_obl = f"""DELETE FROM docs_reg_exp_pay WHERE _utv_exp_id = {id};
+                              DELETE FROM docs_reg_exp_obl WHERE _utv_exp_id = {id};"""
+            with connection.cursor() as cursor:
+                cursor.execute(del_pay_obl)
     except:
         return HttpResponse('{"status": "Ошибка удаления документа"}', content_type="application/json", status=400)
-
-    queryset = utv_exp.objects.order_by('nom')
-    paginator = CustomPagination()
-    paginated_queryset = paginator.paginate_queryset(queryset, request)
-    serial = utv_exp_Serializer(paginated_queryset, many=True)
-    return paginator.get_paginated_response(serial.data)
-
+    return HttpResponse('{"status": "Успешно удален"}', content_type="application/json", status=200)
 
 
 
@@ -895,7 +1018,6 @@ def izmexpitem(request, id_doc):
     jsondata['doc']['_type_izm_doc']['name_rus'] = result[0]['_type_izm_doc_name']
     jsondata['payments'] = resultpay
     jsondata['obligats'] = resultobl
-
     return response.Response(jsondata)
 
 
@@ -927,6 +1049,7 @@ def izmexpsave(request):
             itemdoc._organization_id = org.id
             itemdoc._budjet_id = budjet_id
             itemdoc._date = date_object
+            itemdoc.deleted = False
             if doc_req['_type_izm_doc']['id'] == 0:
                 itemdoc._type_izm_doc_id = 1
             else:
@@ -954,21 +1077,16 @@ def izmexpsave(request):
                 newitemtbl1._organization_id = org.id
                 newitemtbl1._date = date_object
                 for ind in range(12, 0, -1):
-                    utv = itemtbl1['utv' +
-                                   str(ind)] if not itemtbl1['utv' + str(ind)] == None else 0
-                    sm = itemtbl1['sm' +
-                                  str(ind)] if not itemtbl1['sm' + str(ind)] == None else 0
-                    itog = itemtbl1['itog' +
-                                    str(ind)] if not itemtbl1['itog' + str(ind)] == None else 0
+                    utv = itemtbl1['utv' + str(ind)] if not itemtbl1['utv' + str(ind)] == None else 0
+                    sm = itemtbl1['sm' + str(ind)] if not itemtbl1['sm' + str(ind)] == None else 0
+                    itog = itemtbl1['itog' + str(ind)] if not itemtbl1['itog' + str(ind)] == None else 0
 
                     # Проверка редактирования предыдущих месяцев
                     if (month > ind) and not (sm == 0):
-                        transaction.set_rollback(True)
-                        return HttpResponse(json.dumps({"status": "Нельзя редактировать предыдущие месяцы"}), content_type="application/json", status=400)
+                        transaction.rollback("Нельзя редактировать предыдущие месяцы")
 
                     if (month < ind) and ((utv + sm) < 0):
-                        transaction.set_rollback(True)
-                        return HttpResponse(json.dumps({"status": "Нельзя в будущих месяцах указывать сумму больше остатка!"}), content_type="application/json", status=400)
+                        transaction.set_rollback("Нельзя в будущих месяцах указывать сумму больше остатка!")
 
                     setattr(newitemtbl1, 'utv' + str(ind), utv)
                     setattr(newitemtbl1, 'sm' + str(ind), sm)
@@ -983,10 +1101,8 @@ def izmexpsave(request):
                 newregrec._date = date_object
                 god = 0
                 for ind in range(12, 0, -1):
-                    utv = itemtbl1['utv' +
-                                   str(ind)] if not itemtbl1['utv' + str(ind)] == None else 0
-                    sm = itemtbl1['sm' +
-                                  str(ind)] if not itemtbl1['sm' + str(ind)] == None else 0
+                    utv = itemtbl1['utv' + str(ind)] if not itemtbl1['utv' + str(ind)] == None else 0
+                    sm = itemtbl1['sm' + str(ind)] if not itemtbl1['sm' + str(ind)] == None else 0
                     setattr(newregrec, 'sm' + str(ind), sm)
                     if (month == ind) and ((utv + sm) < 0):
                         ost = -sm
@@ -1001,8 +1117,7 @@ def izmexpsave(request):
                             j -= 1
 
                         if ost > 0:
-                            transaction.set_rollback(
-                                True, "Не хватает сумм в платежах. Проверьте суммы.")
+                            transaction.rollback("Не хватает сумм в платежах. Проверьте суммы.")
                         break
                 newregrec.god = god
                 reg_exp_pay_list.append(newregrec)
@@ -1018,16 +1133,13 @@ def izmexpsave(request):
                 newitemtbl2._organization_id = org.id
                 newitemtbl2._date = date_object
                 for ind in range(1, 13):
-                    utv = itemtbl2['utv' +
-                                   str(ind)] if not itemtbl2['utv' + str(ind)] == None else 0
+                    utv = itemtbl2['utv' + str(ind)] if not itemtbl2['utv' + str(ind)] == None else 0
                     setattr(newitemtbl2, 'utv' + str(ind), utv)
                 for ind in range(1, 13):
-                    sm = itemtbl2['sm' +
-                                  str(ind)] if not itemtbl2['sm' + str(ind)] == None else 0
+                    sm = itemtbl2['sm' + str(ind)] if not itemtbl2['sm' + str(ind)] == None else 0
                     setattr(newitemtbl2, 'sm' + str(ind), sm)
                 for ind in range(1, 13):
-                    itog = itemtbl2['itog' +
-                                    str(ind)] if not itemtbl2['itog' + str(ind)] == None else 0
+                    itog = itemtbl2['itog' + str(ind)] if not itemtbl2['itog' + str(ind)] == None else 0
                     setattr(newitemtbl2, 'itog' + str(ind), itog)
                 izm_exp_obl_list.append(newitemtbl2)
 
@@ -1039,15 +1151,13 @@ def izmexpsave(request):
                 newregrec._date = date_object
                 god = 0
                 for ind in range(12, 0, -1):
-                    sm = itemtbl2['sm' +
-                                  str(ind)] if not itemtbl2['sm' + str(ind)] == None else 0
+                    sm = itemtbl2['sm' + str(ind)] if not itemtbl2['sm' + str(ind)] == None else 0
                     setattr(newregrec, 'sm' + str(ind), sm)
                     if (month == ind) and ((utv + sm) < 0):
                         ost = -sm
                         j = ind
                         while ost > 0 and j > 0:
-                            utv_new = itemtbl1['utv' +
-                                               str(j)] if not itemtbl1['utv' + str(j)] == None else 0
+                            utv_new = itemtbl1['utv' + str(j)] if not itemtbl1['utv' + str(j)] == None else 0
                             sum = min(utv_new, ost)
                             setattr(newregrec, 'sm' + str(j), -sum)
                             god += (-sum)
@@ -1055,8 +1165,7 @@ def izmexpsave(request):
                             j -= 1
 
                         if ost > 0:
-                            transaction.set_rollback(
-                                True, "Не хватает сумм в обязательствах. Проверьте суммы.")
+                            transaction.rollback("Не хватает сумм в обязательствах. Проверьте суммы.")
                         break
                     else:
                         god += sm
@@ -1119,8 +1228,7 @@ def izmexpsave(request):
                                     fulldata._fkr_id = fkr.id
                                 left join spec on
                                     fulldata._spec_id = spec.id
-                                GROUP BY (_fkr_id, _spec_id) 
-                                ORDER BY _fkr_id, _spec_id   
+                                GROUP BY (_fkr_id, _spec_id)
                             """
             with connection.cursor() as cursor:
                 cursor.execute(query)
@@ -1141,7 +1249,7 @@ def izmexpsave(request):
 
             errormess = ""
             for i in range(0, len(res_obl)):
-                if not res_obl[i]["god"] == res_pay[i]["god"]:
+                if not res_obl[i]["sm12"] == res_pay[i]["sm12"]:
                     transaction.set_rollback(True)
                     return HttpResponse(json.dumps({"status": "Сумма обязательства и платежей не совпадают"}), content_type="application/json", status=400)
 
@@ -1156,37 +1264,48 @@ def izmexpsave(request):
                 transaction.set_rollback(True)
                 return HttpResponse(json.dumps({"status": errormess}), content_type="application/json", status=400)
 
-            return HttpResponse(json.dumps({"status": "Документ успешно записан", "id_doc":itemdoc.id}), content_type="application/json", status=200)
+            return HttpResponse(json.dumps({"status": "Документ успешно записан", "id_doc":itemdoc.id, "nom":itemdoc.nom}), content_type="application/json", status=200)
 
     except Exception as e:
-        response_data = {
-            "status": e.args[0]
-        }
+        response_data = {"status": e.args[0]}
         return HttpResponse(json.dumps(response_data), content_type="application/json", status=400)
 
 
 @api_view(['DELETE'])
 @permission_classes([IsAuthenticated])
-def izmexpdelete(request, id):
-    try:
-        # табличная часть
-        payms = izm_exp_pay.objects.filter(_izm_exp_id=id)
-        for itmtbl1 in payms:
-            # itmtbl1.deleted = docobj.deleted
-            itmtbl1.delete()
+def izmexpdelete(request):
+    req = json.loads(request.body)
+    docs = req['mass_doc_id']
+    shift = req['shift']
+    is_admin = (request.user.groups.filter(name='fulldata').count()>0)
+    if shift and is_admin:
+        try:
+            with transaction.atomic():
+                for id in docs:
+                    izm_exp_pay.objects.filter(_izm_exp_id=id).delete()
+                    reg_exp_pay.objects.filter(_izm_exp_id=id).delete()
+                    izm_exp_obl.objects.filter(_izm_exp_id=id).delete()
+                    reg_exp_obl.objects.filter(_izm_exp_id=id).delete()
+                    docobj = izm_exp.objects.get(id=id)
+                    docobj.delete()   
+        except Exception as err:
+            a = 1
+    else:
+        try:
+            with transaction.atomic():
+                for id in docs:
+                    izm_exp_pay.objects.filter(_izm_exp_id=id).update(deleted = True)
+                    reg_exp_pay.objects.filter(_izm_exp_id=id).delete()
+                    izm_exp_obl.objects.filter(_izm_exp_id=id).update(deleted = True)
+                    reg_exp_obl.objects.filter(_izm_exp_id=id).delete()
+                    docobj = izm_exp.objects.get(id=id)
+                    docobj.deleted = True
+                    docobj.save() 
+        except Exception as err:
+            a = 1
 
-        docobj = izm_exp.objects.get(id=id)
-        # docobj.deleted = not docobj.deleted
-        docobj.delete()
+    return response.Response({"status":"успешно"})
 
-    except:
-        return HttpResponse('{"status": "Ошибка удаления документа"}', content_type="application/json", status=400)
-
-    queryset = izm_exp.objects.order_by('nom')
-    paginator = CustomPagination()
-    paginated_queryset = paginator.paginate_queryset(queryset, request)
-    serial = izm_exp_serial(paginated_queryset, many=True)
-    return paginator.get_paginated_response(serial.data)
 
 
 @api_view(['POST'])

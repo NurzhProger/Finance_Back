@@ -42,6 +42,7 @@ class izm_inc(models.Model):
     _type_izm_doc = models.ForeignKey(type_izm_doc, null=True, on_delete=models.CASCADE, verbose_name='Тип справки')
     deleted = models.BooleanField(default=False, null=True)
 
+
 # ТЧ изменения плана по поступлениям
 class izm_inc_tbl1(models.Model):
     _izm_inc = models.ForeignKey(izm_inc, blank=True, on_delete=models.CASCADE, verbose_name='ИД документа')
@@ -97,6 +98,7 @@ class izm_inc_tbl1(models.Model):
     itog12 = models.FloatField(null=True)
 
 
+# Регистр накопления по поступлениям
 class reg_inc(models.Model):
     _utv_inc = models.ForeignKey(utv_inc, blank=True, null = True, on_delete=models.CASCADE, verbose_name='ИД документа')
     _izm_inc = models.ForeignKey(izm_inc, blank=True, null = True, on_delete=models.CASCADE, verbose_name='ИД документа')
@@ -124,9 +126,6 @@ class reg_inc(models.Model):
 
 
 
-
-
-
 # Утвержденный план по расходам
 class utv_exp(models.Model):
     nom = models.TextField(null=True)
@@ -134,7 +133,6 @@ class utv_exp(models.Model):
     _organization = models.ForeignKey(organization, blank=True, on_delete=models.CASCADE, verbose_name='Организация документа')
     _budjet = models.ForeignKey(budjet, blank=True, on_delete=models.CASCADE, verbose_name='Бюджет документа')
     deleted = models.BooleanField(default=False, null=True)
-
 
 
 # ТЧ платежи утвержденного плана по расходам
@@ -160,7 +158,6 @@ class utv_exp_pay(models.Model):
     sm12 = models.FloatField(null=True)
     
 
-
 # ТЧ обязательства утвержденного плана по расходам
 class utv_exp_obl(models.Model):
     _utv_exp = models.ForeignKey(utv_exp, blank=True, on_delete=models.CASCADE, verbose_name='ИД документа')
@@ -184,8 +181,6 @@ class utv_exp_obl(models.Model):
     sm12 = models.FloatField(null=True)
     
 
-
-
 # Изменение плана расхода по платежам
 class izm_exp(models.Model):
     nom = models.TextField(null=True)
@@ -195,7 +190,6 @@ class izm_exp(models.Model):
     _type_izm_doc = models.ForeignKey(type_izm_doc, null=True, on_delete=models.CASCADE, verbose_name='Тип справки')
     deleted = models.BooleanField(default=False, null=True)
     doc_hash = models.TextField(null=True)
-
 
 
 # ТЧ изменения плана по платежам
@@ -280,8 +274,6 @@ class reg_exp_pay(models.Model):
     sm12 = models.FloatField(null=True, default=0)
 
 
-
-
 # ТЧ изменения плана по обязательствам
 class izm_exp_obl(models.Model):
     _izm_exp = models.ForeignKey(izm_exp, blank=True, on_delete=models.CASCADE, verbose_name='ИД документа')
@@ -336,7 +328,6 @@ class izm_exp_obl(models.Model):
     itog10 = models.FloatField(null=True, default=0)
     itog11 = models.FloatField(null=True, default=0)
     itog12 = models.FloatField(null=True, default=0)
-
 
 
 # Регистр плана по обязательствам
@@ -401,8 +392,6 @@ class import219_tbl1(models.Model):
     sm10 = models.FloatField(null=True)#Бюджет МСУ с начала года
 
 
-
-
 # Импорт форма 4-20 (расходы)
 class import420(models.Model):
     nom = models.TextField(null=True)
@@ -431,8 +420,6 @@ class import420_tbl1(models.Model):
     sm8 = models.FloatField(null=True) #Невыплаченные обязательства 
     sm9 = models.FloatField(null=True) #Остаток по обязательствам
     sm10 = models.FloatField(null=True)#Остаток по платежам
-
-
 
 
 # Свод справок по расходам

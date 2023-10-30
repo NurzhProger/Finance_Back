@@ -26,7 +26,7 @@ urlpatterns = [
     path('izmexplist', views.izmexplist, name='index'),
     path('izmexpitem/<int:id_doc>', views.izmexpitem, name='index'),
     path('izmexpsave', views.izmexpsave, name='index'),
-    path('izmexpdelete/<int:id>', views.izmexpdelete, name='index'),
+    path('izmexpdelete', views.izmexpdelete, name='index'),
     path('expgetplanbyclassif', views.expgetplanbyclassif, name='index'),
 
 
