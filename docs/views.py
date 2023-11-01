@@ -9,7 +9,7 @@ from django.db import connection, transaction
 from .models import *
 from .serializer import *
 # Общий модуль импортируем
-from .shareModuleInc import getincplanbyclassif, object_svod_get
+from .shareModuleInc import object_svod_get, getqsetlist
 from PyPDF2 import PdfReader
 
 
@@ -25,12 +25,7 @@ class CustomPagination(pagination.LimitOffsetPagination):
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
 def utvinclist(request):
-    a = request.user.groups.filter(name='fulldata').count()
-    if a == 0:
-        id_org = request.user.profile._organization_id
-        queryset = utv_inc.objects.filter(_organization_id = id_org).order_by('nom')
-    else:
-        queryset = utv_inc.objects.order_by('nom')
+    queryset = getqsetlist(utv_inc, request.user, 'nom')
     paginator = CustomPagination()
     paginated_queryset = paginator.paginate_queryset(queryset, request)
     serial = utv_inc_Serializer(paginated_queryset, many=True)
@@ -205,12 +200,7 @@ def utvincdelete(request):
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
 def izminclist(request):
-    a = request.user.groups.filter(name='fulldata').count()
-    if a == 0:
-        id_org = request.user.profile._organization_id
-        queryset = izm_inc.objects.filter(_organization_id = id_org).order_by('nom')
-    else:
-        queryset = izm_inc.objects.order_by('nom')
+    queryset = getqsetlist(izm_inc, request.user, 'nom')
     paginator = CustomPagination()
     paginated_queryset = paginator.paginate_queryset(queryset, request)
     serial = izm_inc_Serializer(paginated_queryset, many=True)
@@ -301,6 +291,7 @@ def izmincsave(request):
             itemdoc._type_izm_doc_id = doc_req['_type_izm_doc']['id']
             itemdoc._budjet_id = org._budjet.id
             itemdoc._date = date_object
+            itemdoc.deleted = False
             # Непосредственно сохранение документа
             itemdoc.save()
 
@@ -431,15 +422,17 @@ def izmincdelete(request):
         for id in docs:
             try:
                 with transaction.atomic():
+                    izm_inc_tbl1.objects.filter(_izm_inc_id=id).delete()
+                    reg_inc.objects.filter(_izm_inc_id=id).delete()
                     docobj = izm_inc.objects.get(id=id)
                     docobj.delete()
-                    izm_inc_tbl1.objects.filter(_izm_inc_id=id).delete()
             except: a = 1
     else:
         for id in docs:
             try:
                 izm_inc.objects.filter(id=id).update(deleted = True)
                 izm_inc_tbl1.objects.filter(_izm_inc_id=id).update(deleted = True)
+                reg_inc.objects.filter(_izm_inc_id=id).delete()
             except: a = 1
     return response.Response({"status":"ok"})
 
@@ -459,8 +452,6 @@ def incgetplanbyclassif(request):
         date = datetime.strptime(strdate, "%d.%m.%Y %H:%M:%S")
     start_of_year = date.replace(month=1, day=1, hour=0, minute=0, second=0)
 
-    # Получаем остатки сумм плана (фильры по организации - обязательно, дата, классификация)
-    # data = getincplanbyclassif(_organization, date=date, _classification_id=_classification)
 
     query = f"""with reg as (SELECT _classification_id, sum(sm1) as sm1, sum(sm2) as sm2, sum(sm3) as sm3, sum(sm4) as sm4, sum(sm5) as sm5, sum(sm6) as sm6, sum(sm7) as sm7, sum(sm8) as sm8, sum(sm9) as sm9, sum(sm10) as sm10, sum(sm11) as sm11, sum(sm12) as sm12
                                     FROM public.docs_reg_inc
@@ -540,13 +531,7 @@ def incgetplanbyclassif(request):
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
 def utvexplist(request):
-    a = request.user.groups.filter(name='fulldata').count()
-    if a == 0:
-        id_org = request.user.profile._organization_id
-        queryset = utv_exp.objects.filter(_organization_id = id_org).order_by('nom')
-    else:
-        queryset = utv_exp.objects.order_by('nom')
-    # queryset = utv_exp.objects.order_by('nom')
+    queryset = getqsetlist(utv_exp, request.user, 'nom')
     paginator = CustomPagination()
     paginated_queryset = paginator.paginate_queryset(queryset, request)
     serial = utv_exp_Serializer(paginated_queryset, many=True)
@@ -899,13 +884,7 @@ def utvexpdelete(request, id):
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
 def izmexplist(request):
-    a = request.user.groups.filter(name='fulldata').count()
-    if a == 0:
-        id_org = request.user.profile._organization_id
-        queryset = izm_exp.objects.filter(_organization_id = id_org).order_by('nom')
-    else:
-        queryset = izm_exp.objects.order_by('nom')
-    # queryset = izm_exp.objects.order_by('nom')
+    queryset = getqsetlist(izm_exp, request.user, 'nom')
     paginator = CustomPagination()
     paginated_queryset = paginator.paginate_queryset(queryset, request)
     serial = izm_exp_serial(paginated_queryset, many=True)
@@ -1313,7 +1292,7 @@ def izmexpdelete(request):
 def expgetplanbyclassif(request):
     datastr = request.body
     data = json.loads(datastr)
-    table = data['table']
+    # table = data['table']
     _organization = data['_organization']
     _fkr = data['_fkr']
     _spec = data['_spec']
@@ -1324,16 +1303,26 @@ def expgetplanbyclassif(request):
     qset_spec = spec_exp.objects.get(id=_spec)
 
     resp = {
-        "_fkr_id": qset_fkr.id,
-        "_fkr_name": qset_fkr.name_rus,
-        "_fkr_code": qset_fkr.code,
-        "_spec_id": qset_spec.id,
-        "_spec_name": qset_spec.name_rus,
-        "_spec_code": qset_spec.code
+        "pay": {
+            "_fkr_id": qset_fkr.id,
+            "_fkr_name": qset_fkr.name_rus,
+            "_fkr_code": qset_fkr.code,
+            "_spec_id": qset_spec.id,
+            "_spec_name": qset_spec.name_rus,
+            "_spec_code": qset_spec.code
+            },
+        "obl": {
+            "_fkr_id": qset_fkr.id,
+            "_fkr_name": qset_fkr.name_rus,
+            "_fkr_code": qset_fkr.code,
+            "_spec_id": qset_spec.id,
+            "_spec_name": qset_spec.name_rus,
+            "_spec_code": qset_spec.code
+            }
     }
 
-    query = f"""with union_utv_izm as (SELECT _fkr_id, _spec_id, sum(sm1) as sm1, sum(sm2) as sm2, sum(sm3) as sm3, sum(sm4) as sm4, sum(sm5) as sm5, sum(sm6) as sm6, sum(sm7) as sm7, sum(sm8) as sm8, sum(sm9) as sm9, sum(sm10) as sm10, sum(sm11) as sm11, sum(sm12) as sm12 
-                            FROM public.docs_reg_exp_{table}
+    query_pay = f"""with union_utv_izm as (SELECT _fkr_id, _spec_id, sum(sm1) as sm1, sum(sm2) as sm2, sum(sm3) as sm3, sum(sm4) as sm4, sum(sm5) as sm5, sum(sm6) as sm6, sum(sm7) as sm7, sum(sm8) as sm8, sum(sm9) as sm9, sum(sm10) as sm10, sum(sm11) as sm11, sum(sm12) as sm12 
+                            FROM public.docs_reg_exp_pay
                             WHERE _organization_id = {_organization} and _date>=DATE_TRUNC('year', current_date) and _date<='{date}' and _fkr_id = {_fkr} and _spec_id = {_spec}
                             GROUP BY _fkr_id, _spec_id)
                     SELECT  
@@ -1355,21 +1344,59 @@ def expgetplanbyclassif(request):
                     GROUP BY _fkr_id,_spec_id"""
 
     with connection.cursor() as cursor:
-        cursor.execute(query)
+        cursor.execute(query_pay)
         columns = [col[0] for col in cursor.description]
-        result = [dict(zip(columns, row))
+        result_pay = [dict(zip(columns, row))
                   for row in cursor.fetchall()]
-    if len(result) > 0:
-        merged_dict = {**resp, **result[0]}
-        merged_json = json.dumps(merged_dict)
+
+    if len(result_pay) > 0:
+        resp['pay'] = {**resp['pay'], **result_pay[0]}
     else:
         for ind in range(1, 13):
-            resp["utv" + str(ind)] = 0
-            resp["sm" + str(ind)] = 0
-            resp["itog" + str(ind)] = 0
-        merged_json = json.dumps(resp)
+            resp['pay']["utv" + str(ind)] = 0
+            resp['pay']["sm" + str(ind)] = 0
+            resp['pay']["itog" + str(ind)] = 0
 
-    return HttpResponse(merged_json, content_type="application/json")
+
+
+    query_obl = f"""with union_utv_izm as (SELECT _fkr_id, _spec_id, sum(sm1) as sm1, sum(sm2) as sm2, sum(sm3) as sm3, sum(sm4) as sm4, sum(sm5) as sm5, sum(sm6) as sm6, sum(sm7) as sm7, sum(sm8) as sm8, sum(sm9) as sm9, sum(sm10) as sm10, sum(sm11) as sm11, sum(sm12) as sm12 
+                            FROM public.docs_reg_exp_obl
+                            WHERE _organization_id = {_organization} and _date>=DATE_TRUNC('year', current_date) and _date<='{date}' and _fkr_id = {_fkr} and _spec_id = {_spec}
+                            GROUP BY _fkr_id, _spec_id)
+                    SELECT  
+                        COALESCE(sum(sm1),0) as utv1, 
+                        COALESCE(sum(sm2),0) as utv2,
+                        COALESCE(sum(sm3),0) as utv3, 
+                        COALESCE(sum(sm4),0) as utv4, 
+                        COALESCE(sum(sm5),0) as utv5, 
+                        COALESCE(sum(sm6),0) as utv6, 
+                        COALESCE(sum(sm7),0) as utv7, 
+                        COALESCE(sum(sm8),0) as utv8, 
+                        COALESCE(sum(sm9),0) as utv9, 
+                        COALESCE(sum(sm10),0) as utv10, 
+                        COALESCE(sum(sm11),0) as utv11, 
+                        COALESCE(sum(sm12),0) as utv12,
+                        0 as sm1, 0 as sm2, 0 as sm3, 0 as sm4, 0 as sm5, 0 as sm6, 0 as sm7, 0 as sm8, 0 as sm9, 0 as sm10, 0 as sm11, 0 as sm12,
+                        0 as itog1, 0 as itog2, 0 as itog3, 0 as itog4, 0 as itog5, 0 as itog6, 0 as itog7, 0 as itog8, 0 as itog9, 0 as itog10, 0 as itog11, 0 as itog12
+                    FROM union_utv_izm                
+                    GROUP BY _fkr_id,_spec_id"""
+
+    with connection.cursor() as cursor:
+        cursor.execute(query_obl)
+        columns = [col[0] for col in cursor.description]
+        result_obl = [dict(zip(columns, row))
+                  for row in cursor.fetchall()]
+                  
+    if len(result_obl) > 0:
+        resp['obl'] = {**resp['obl'], **result_obl[0]}
+    else:
+        for ind in range(1, 13):
+            resp['obl']["utv" + str(ind)] = 0
+            resp['obl']["sm" + str(ind)] = 0
+            resp['obl']["itog" + str(ind)] = 0
+    
+    json_data = json.dumps(resp, ensure_ascii=False)
+    return HttpResponse(json_data, content_type="application/json")
 
 
 
@@ -1381,13 +1408,7 @@ def expgetplanbyclassif(request):
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
 def svodexplist(request):
-    a = request.user.groups.filter(name='fulldata').count()
-    if a == 0:
-        id_org = request.user.profile._organization_id
-        queryset = svod_exp.objects.filter(_organization_id = id_org).order_by('nom')
-    else:
-        queryset = svod_exp.objects.order_by('nom')
-    # queryset = svod_exp.objects.order_by('nom')
+    queryset = getqsetlist(svod_exp, request.user, 'nom')
     paginator = CustomPagination()
     paginated_queryset = paginator.paginate_queryset(queryset, request)
     serial = svod_exp_list_serial(paginated_queryset, many=True)
@@ -1739,13 +1760,7 @@ def import_219(request):
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
 def import219list(request):
-    a = request.user.groups.filter(name='fulldata').count()
-    if a == 0:
-        id_org = request.user.profile._organization_id
-        queryset = import219.objects.filter(_organization_id = id_org).order_by('nom')
-    else:
-        queryset = import219.objects.order_by('nom')
-    queryset = import219.objects.order_by('nom')
+    queryset = getqsetlist(import219, request.user, 'nom')
     paginator = CustomPagination()
     paginated_queryset = paginator.paginate_queryset(queryset, request)
     serial = import_219_serial(paginated_queryset, many = True)
@@ -2122,13 +2137,7 @@ def import_420(request):
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
 def import420list(request):
-    a = request.user.groups.filter(name='fulldata').count()
-    if a == 0:
-        id_org = request.user.profile._organization_id
-        queryset = import420.objects.filter(_organization_id = id_org).order_by('nom')
-    else:
-        queryset = import420.objects.order_by('nom')
-    # queryset = import420.objects.order_by('nom')
+    queryset = getqsetlist(import420, request.user, 'nom')
     paginator = CustomPagination()
     paginated_queryset = paginator.paginate_queryset(queryset, request)
     serial = import_420_serial(paginated_queryset, many = True)

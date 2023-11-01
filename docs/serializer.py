@@ -97,8 +97,6 @@ class izm_exp_serial(serializers.ModelSerializer):
     _organization = organizationMinSerializer()
     _date = serializers.DateTimeField(format='%d.%m.%Y %H:%M:%S')
     _type_izm_doc = typedocSerializer()
-    # izm_exp_pay_set = izm_exp_pay_serial(many = True)
-    # izm_exp_obl_set = izm_exp_obl_serial(many = True)
     class Meta:
         model = izm_exp
         exclude = ['_budjet']
@@ -107,7 +105,7 @@ class izm_exp_serial(serializers.ModelSerializer):
 
 class import_219_serial(serializers.ModelSerializer):
     _organization = organizationMinSerializer()
-    _budjet = budjetSerializer()
+    _budjet = budjetMinSerializer()
     _date = serializers.DateField(format='%d.%m.%Y')
     class Meta:
         model = import219
@@ -116,7 +114,7 @@ class import_219_serial(serializers.ModelSerializer):
 
 class import_420_serial(serializers.ModelSerializer):
     _organization = organizationMinSerializer()
-    _budjet = budjetSerializer()
+    _budjet = budjetMinSerializer()
     _date = serializers.DateField(format='%d.%m.%Y')
     class Meta:
         model = import420

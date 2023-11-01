@@ -261,6 +261,7 @@ def getinfo(request):
         respon = {"user": userserial.data, "profile": profserial.data, "history":logsserial.data, "roles":rolesname}
         return response.Response(respon)
     except Exception as err:
+        print(err)
         respon = '{"user": "Ошибка сервера"}'
         return HttpResponse(respon, content_type="application/json", status = 400)
 
@@ -271,31 +272,29 @@ def getinfo(request):
 @permission_classes([IsAuthenticated])
 def cleartoken(request):
     user_id = request.user.pk
-    Token.objects.filter(user_id = user_id).delete()
+    return HttpResponse('{"detail": "token cleared", "changepass":"False"}', content_type="application/json")
+    
+    # Token.objects.filter(user_id = user_id).delete()
+    # objs = loginhistory.objects.filter(username = request.user).order_by('-id')[:5]
+    # err = 0
+    # lasttime = datetime.now()
 
-    objs = loginhistory.objects.filter(username = request.user).order_by('-id')[:5]
+    # for itm in objs:
+    #     if itm.status == 'error':
+    #         err +=1
+    #         lasttime = itm._date
 
-    err = 0
-    lasttime = datetime.now()
-
-    for itm in objs:
-        if itm.status == 'error':
-            err +=1
-            lasttime = itm._date
-
-
-    raznica = (datetime.now() - lasttime).total_seconds()/60
-
-    if err>=5 and raznica<=2:
-        return HttpResponse('{"detail": "Вы заблокированы на 2 минуты."}', content_type="application/json", status = 400)
+    # raznica = (datetime.now() - lasttime).total_seconds()/60
+    # if err>=5 and raznica<=2:
+    #     return HttpResponse('{"detail": "Вы заблокированы на 2 минуты."}', content_type="application/json", status = 400)
         
-    profileobj = profile.objects.get(_user_id = user_id)
+    # profileobj = profile.objects.get(_user_id = user_id)
 
-    diff_days = (datetime.now() - profileobj._date_change).days
-    if diff_days>60:
-        return HttpResponse('{"detail": "token cleared", "changepass":"True"}', content_type="application/json")
-    else:
-        return HttpResponse('{"detail": "token cleared", "changepass":"' + str(profileobj.changepass) + '"}', content_type="application/json")
+    # diff_days = (datetime.now() - profileobj._date_change).days
+    # if diff_days>60:
+    #     return HttpResponse('{"detail": "token cleared", "changepass":"True"}', content_type="application/json")
+    # else:
+    #     return HttpResponse('{"detail": "token cleared", "changepass":"' + str(profileobj.changepass) + '"}', content_type="application/json")
 
 
 
@@ -337,18 +336,6 @@ def logineduser(request):
 
 
     return HttpResponse('{"status": "Успешно"}', content_type="application/json", status = 200)
-
-    # try:
-    #     qset = User.objects.get(username = username)
-    #     userserial = useritemSerializer(qset)
-    #     profserial = profileSerializer(qset.profile)
-    #     respon = {"user": userserial.data, "profile": profserial.data}
-    #     return response.Response(respon)
-    # except:
-    #     respon = '{"user": "Ошибка логина или пароля"}'
-    #     return HttpResponse(respon, content_type="application/json", status = 400)
-   
-    
 
 
 

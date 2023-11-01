@@ -1,15 +1,12 @@
 from django.http import HttpResponse
-from rest_framework import pagination
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import IsAuthenticated
 from dirs.models import *
 from docs.models import *
-from .serializer import *
 from django.db import connection
 from wsgiref.util import FileWrapper
-import json
-import os
-import datetime
+import json, os, datetime, tempfile
+
 
 from openpyxl import load_workbook
 from openpyxl.styles import Font, Border, Side, PatternFill
@@ -33,16 +30,9 @@ def report2728(request):
     tip_rep = data['tip_rep']
 
     # Получаем текущий каталог скрипта
-    relative_path = os.path.join(
-        current_directory, "report_template", "report_2728.xlsx")
+    relative_path = os.path.join(current_directory, "report_template", "report_2728.xlsx")
     wb = load_workbook(relative_path)
     ws = wb.active
-    # ws.page_setup.orientation = ws.ORIENTATION_LANDSCAPE
-    # Устанавливаем параметры печати и масштаб
-    # page_setup = PrintPageSetup()
-    # page_setup.fitToWidth = 0  # Оставьте 0 для автоматического масштабирования по ширине
-    # page_setup.fitToHeight = 1  # Установите 1 для автоматического масштабирования по высоте
-    # ws.page_setup = page_setup
 
     border = Border(left=Side(style='thin', color='000000'),
                     right=Side(style='thin', color='000000'),
@@ -148,23 +138,22 @@ def report2728(request):
                         1).font = Font(color=color)
         cnt += 1
 
-    # ws.print_title_rows = "17:17"
-
-    xlsx_temp = current_directory + "/temp_files/" + \
-        request.user.username + "_2728.xlsx"
-    pdf_temp = current_directory + "/temp_files/" + \
-        request.user.username + "_2728.pdf"
-
+    id_xslx, xlsx_temp = tempfile.mkstemp(suffix='.xlsx', text=False)
+    id_pdf, pdf_temp = tempfile.mkstemp(suffix='.pdf', text=False)
     wb.save(xlsx_temp)
     workbook = Workbook(xlsx_temp)
     workbook.save(pdf_temp)
 
     pdf_file = open(pdf_temp, "rb")
     body = FileWrapper(pdf_file)
-
     resp = HttpResponse(body, content_type="application/pdf")
     resp['Content-Disposition'] = 'attachment; filename="table.pdf"'
-    pdf_file.close()
+    
+    os.close(id_xslx)
+    os.close(id_pdf)
+    os.remove(xlsx_temp)
+    os.remove(pdf_temp)
+    
     return resp
 
 
@@ -285,21 +274,22 @@ def report2930(request):
 
     ws.print_title_rows = "17:17"
 
-    xlsx_temp = current_directory + "/temp_files/" + \
-        request.user.username + "_2930.xlsx"
-    pdf_temp = current_directory + "/temp_files/" + \
-        request.user.username + "_2930.pdf"
-
+    id_xslx, xlsx_temp = tempfile.mkstemp(suffix='.xlsx', text=False)
+    id_pdf, pdf_temp = tempfile.mkstemp(suffix='.pdf', text=False)
     wb.save(xlsx_temp)
     workbook = Workbook(xlsx_temp)
     workbook.save(pdf_temp)
 
     pdf_file = open(pdf_temp, "rb")
     body = FileWrapper(pdf_file)
-
     resp = HttpResponse(body, content_type="application/pdf")
     resp['Content-Disposition'] = 'attachment; filename="table.pdf"'
-    pdf_file.close()
+    
+    os.close(id_xslx)
+    os.close(id_pdf)
+    os.remove(xlsx_temp)
+    os.remove(pdf_temp)
+    
     return resp
 
 
@@ -418,23 +408,22 @@ def report3335(request):
                         1).font = Font(color=color)
         cnt += 1
 
-    # ws.print_title_rows = "17:17"
-
-    xlsx_temp = current_directory + "/temp_files/" + \
-        request.user.username + "_3335.xlsx"
-    pdf_temp = current_directory + "/temp_files/" + \
-        request.user.username + "_3335.pdf"
-
+    id_xslx, xlsx_temp = tempfile.mkstemp(suffix='.xlsx', text=False)
+    id_pdf, pdf_temp = tempfile.mkstemp(suffix='.pdf', text=False)
     wb.save(xlsx_temp)
     workbook = Workbook(xlsx_temp)
     workbook.save(pdf_temp)
 
     pdf_file = open(pdf_temp, "rb")
     body = FileWrapper(pdf_file)
-
     resp = HttpResponse(body, content_type="application/pdf")
     resp['Content-Disposition'] = 'attachment; filename="table.pdf"'
-    pdf_file.close()
+    
+    os.close(id_xslx)
+    os.close(id_pdf)
+    os.remove(xlsx_temp)
+    os.remove(pdf_temp)
+    
     return resp
 
 
@@ -445,17 +434,56 @@ def report2_5(request):
     data = json.loads(datastr)
     org_id = data['_organization_id']
     tip_rep = data['tip_rep']
+    lang = data['lang']
+    _date = data['_date']
+    date_end = datetime.datetime.strptime(_date, "%d.%m.%Y %H:%M:%S").replace(hour=23, minute=59, second=59)
+    date_start = date_end.replace(month=1, day=1, hour=0, minute=0, second=0)
+
+
     if not (tip_rep == "pay" or tip_rep == "obl"):
         return HttpResponse(json.dumps({"status": "Неверный тип отчета"}), content_type="application/json", status=400)
 
     if (org_id == 0):
         return HttpResponse(json.dumps({"status": "Выберите организацию"}), content_type="application/json", status=400)
+    org_obj = organization.objects.get(id = org_id)
+
+    
+
 
     # Получаем текущий каталог скрипт
-    relative_path = os.path.join(
-        current_directory, "report_template", "report_2_5.xlsx")
+    relative_path = os.path.join(current_directory, "report_template", "report_2_5_" + lang + ".xlsx")
     wb = load_workbook(relative_path)
     ws = wb.active
+
+    
+    ws._cells[10,16].value = str(datetime.date.today())
+    
+    if lang == 'kaz':
+        ws._cells[12,6].value = org_obj._budjet.name_kaz
+        ws._cells[13,6].value = org_obj._budjet._vid_budjet.name_kaz
+        ws._cells[14,6].value = str(datetime.date.today())
+        ws._cells[16,6].value = org_obj._abp.name_kaz
+        ws._cells[17,6].value = org_obj.name_kaz
+        if tip_rep == "pay":
+            ws._cells[3,16].value = "2 косымша"
+            ws._cells[9,9].value = "Төлемдер бойынша мемлекеттік мекемені қаржыландырудың жеке жоспары"
+        else:
+            ws._cells[3,16].value = "5 косымша"
+            ws._cells[9,9].value = "Мiндеттеме бойынша мемлекеттік мекемені қаржыландырудың жеке жоспары"
+    else:
+        ws._cells[12,6].value = org_obj._budjet.name_rus
+        ws._cells[13,6].value = org_obj._budjet._vid_budjet.name_rus
+        ws._cells[14,6].value = str(datetime.date.today())
+        ws._cells[16,6].value = org_obj._abp.name_rus
+        ws._cells[17,6].value = org_obj.name_rus
+        if tip_rep == "pay":
+            ws._cells[1,16].value = "Приложение 2"
+            ws._cells[9,9].value = "Индивидуальный план финансирования государственного учреждения по платежам"
+        else:
+            ws._cells[1,16].value = "Приложение 5"
+            ws._cells[9,9].value = "Индивидуальный план финансирования государственного учреждения по обязательствам"
+        
+
 
     border = Border(left=Side(style='thin', color='000000'),
                     right=Side(style='thin', color='000000'),
@@ -468,8 +496,9 @@ def report2_5(request):
 
     query = f"""with union_utv_izm as (SELECT _fkr_id, _spec_id, _organization_id, sum(sm1) as sm1, sum(sm2) as sm2, sum(sm3) as sm3, sum(sm4) as sm4, sum(sm5) as sm5, sum(sm6) as sm6, sum(sm7) as sm7, sum(sm8) as sm8, sum(sm9) as sm9, sum(sm10) as sm10, sum(sm11) as sm11, sum(sm12) as sm12 
                             FROM public.docs_reg_exp_{tip_rep}
-                            WHERE _organization_id = {org_id}
-                            GROUP BY _fkr_id, _spec_id,_organization_id),
+                            WHERE _organization_id = {org_id} and _date>='{date_start}' and _date<='{date_end}'
+                            GROUP BY _fkr_id, _spec_id,_organization_id
+                            HAVING not (sum(sm1)+sum(sm2)+sum(sm3)+sum(sm4)+sum(sm5)+sum(sm6)+sum(sm7)+sum(sm8)+sum(sm9)+sum(sm10)+sum(sm11)+sum(sm12))=0),
                     org as (SELECT * FROM public.dirs_organization
                                             WHERE id in (select _organization_id from union_utv_izm)),
                     fkr as (SELECT * FROM public.dirs_fkr
@@ -533,11 +562,13 @@ def report2_5(request):
         cursor.execute(query)
         result = cursor.fetchall()
 
-    startrow = 23
+    total_row = None
+    startrow = 24
     cnt = 0
     for row in result:
         color = "FFFFFF"
         if (row[0] == None):
+            total_row = row
             continue
 
         ws.insert_rows(startrow + cnt)
@@ -548,15 +579,15 @@ def report2_5(request):
 
             if i == 6:  # если это наименование
                 if (row[1] == None and row[2] == None and row[3] == None and row[4] == None):
-                    cell = ws.cell(row=startrow + cnt, column=i, value=row[18])
-                elif (row[2] == None and row[3] == None and row[4] == None):
                     cell = ws.cell(row=startrow + cnt, column=i, value=row[19])
-                elif (row[3] == None and row[4] == None):
+                elif (row[2] == None and row[3] == None and row[4] == None):
                     cell = ws.cell(row=startrow + cnt, column=i, value=row[20])
-                elif (row[4] == None):
+                elif (row[3] == None and row[4] == None):
                     cell = ws.cell(row=startrow + cnt, column=i, value=row[21])
-                else:
+                elif (row[4] == None):
                     cell = ws.cell(row=startrow + cnt, column=i, value=row[22])
+                else:
+                    cell = ws.cell(row=startrow + cnt, column=i, value=row[23])
             else:
                 cell = ws.cell(row=startrow + cnt, column=i, value=value)
             cell.border = border
@@ -566,24 +597,38 @@ def report2_5(request):
                 color = "FFDDDDDD"
 
             if (not value == None and i > 1 and i < 6):
-                ws.cell(row=startrow + cnt, column=i -
-                        1).font = Font(color=color)
+                ws.cell(row=startrow + cnt, column=i - 1).font = Font(color=color)
         cnt += 1
 
-    xlsx_temp = current_directory + "/temp_files/" + \
-        request.user.username + "_2_5.xlsx"
-    pdf_temp = current_directory + "/temp_files/" + request.user.username + "_2_5.pdf"
+    # Вывод общих  итогов таблицы
+    for i, value in enumerate(total_row, 1):
+        if i > 19:
+            continue
+        cell = ws.cell(row=startrow + cnt, column=i, value=value)
 
+
+    id_xslx, xlsx_temp = tempfile.mkstemp(suffix='.xlsx', text=False)
+    id_pdf, pdf_temp = tempfile.mkstemp(suffix='.pdf', text=False)
     wb.save(xlsx_temp)
     workbook = Workbook(xlsx_temp)
     workbook.save(pdf_temp)
+   
+    # xlsx_temp = current_directory + "/temp_files/" + request.user.username + "_2_5.xlsx"
+    # pdf_temp = current_directory + "/temp_files/" + request.user.username + "_2_5.pdf"
+    # wb.save(xlsx_temp)
+    # workbook = Workbook(xlsx_temp)
+    # workbook.save(pdf_temp)
 
     pdf_file = open(pdf_temp, "rb")
     body = FileWrapper(pdf_file)
-
     resp = HttpResponse(body, content_type="application/pdf")
     resp['Content-Disposition'] = 'attachment; filename="table.pdf"'
-    pdf_file.close()
+
+    os.close(id_xslx)
+    os.close(id_pdf)
+
+    os.remove(xlsx_temp)
+    os.remove(pdf_temp)
     return resp
 
 
@@ -593,9 +638,14 @@ def report_14(request):
     datastr = request.body
     data = json.loads(datastr)
     _budjet_id = data['_budjet_id']
-    tip_rep = data['_date']
+    _date = data['_date']
+    lang = data['lang']
 
-    ids_bjt = budjet.objects.get(id=_budjet_id).get_hierarchy_ids()
+    date = datetime.datetime.strptime(_date, '%d.%m.%Y %H:%M:%S')
+    date_end = date.replace(hour=23, minute=59, second=59)
+    date_start = date_end.replace(month=1, day=1, hour=0, minute=0, second=0)
+    bjt_obj = budjet.objects.get(id=_budjet_id)
+    ids_bjt = bjt_obj.get_hierarchy_ids()
     ids_bjt.append(0)  # пустой ИД в конце, чтобы избавиться от лишнего ","
     kortej = tuple(ids_bjt)
 
@@ -603,10 +653,20 @@ def report_14(request):
         return HttpResponse(json.dumps({"status": "Выберите бюджет"}), content_type="application/json", status=400)
 
     # Получаем текущий каталог скрипт
-    relative_path = os.path.join(
-        current_directory, "report_template", "report_14.xlsx")
+    relative_path = os.path.join(current_directory, "report_template", "report_14_" + lang + ".xlsx")
     wb = load_workbook(relative_path)
     ws = wb.active
+
+
+    if lang == 'kaz':
+        ws._cells[13,6].value = bjt_obj._vid_budjet.name_kaz
+        ws._cells[14,6].value = date.year
+        ws._cells[15,6].value = date.date().strftime('%d.%m.%Y')
+    else:
+        ws._cells[13,6].value = bjt_obj._vid_budjet.name_rus
+        ws._cells[14,6].value = date.year
+        ws._cells[15,6].value = date.date().strftime('%d.%m.%Y')
+
 
     border = Border(left=Side(style='thin', color='000000'),
                     right=Side(style='thin', color='000000'),
@@ -617,7 +677,27 @@ def report_14(request):
                                   end_color='FFDDDDDD',
                                   fill_type='solid')
 
-    query = f"""with reg as (SELECT * FROM docs_reg_inc where _budjet_id in {kortej}),
+    query = f"""with reg as (SELECT _budjet_id,
+                                _classification_id,
+                                sum(reg.god) as god, 
+                                sum(reg.sm1) as sm1, 
+                                sum(reg.sm2) as sm2, 
+                                sum(reg.sm3) as sm3, 
+                                sum(reg.sm4) as sm4, 
+                                sum(reg.sm5) as sm5, 
+                                sum(reg.sm6) as sm6, 
+                                sum(reg.sm7) as sm7, 
+                                sum(reg.sm8) as sm8, 
+                                sum(reg.sm9) as sm9, 
+                                sum(reg.sm10) as sm10, 
+                                sum(reg.sm11) as sm11, 
+                                sum(reg.sm12) as sm12
+                            FROM docs_reg_inc as reg
+                            WHERE _budjet_id in {kortej}
+                                and _date>='{date_start}' and _date<='{date_end}'
+                            GROUP BY _budjet_id, _classification_id
+                            HAVING not sum(reg.god)=0
+                            ),
                         budjet as (select * from dirs_budjet
                                     where id in (select _budjet_id from reg)),
                         classif as (select * from dirs_classification_income
@@ -670,17 +750,18 @@ def report_14(request):
         cursor.execute(query)
         result = cursor.fetchall()
 
+    total_row = None
     startrow = 22
     cnt = 0
     for row in result:
         color = "FFFFFF"
         # Пропуск общего итога
         if (row[0] == None):
+            total_row = row
             continue
 
         ws.insert_rows(startrow + cnt)
         for i, value in enumerate(row, 1):
-
             if i > 19:
                 continue
 
@@ -708,10 +789,21 @@ def report_14(request):
                         1).font = Font(color=color)
         cnt += 1
 
-    xlsx_temp = current_directory + "/temp_files/" + \
-        request.user.username + "_14.xlsx"
-    pdf_temp = current_directory + "/temp_files/" + request.user.username + "_14.pdf"
+    # Общие итоги по всей таблице
+    for i, value in enumerate(total_row, 1):
+        if i > 19 or i<7:
+            continue
+        cell = ws.cell(row=startrow + cnt, column=i, value=value)
 
+    # xlsx_temp = current_directory + "/temp_files/" + \
+    #     request.user.username + "_14.xlsx"
+    # pdf_temp = current_directory + "/temp_files/" + request.user.username + "_14.pdf"
+    # wb.save(xlsx_temp)
+    # workbook = Workbook(xlsx_temp)
+    # workbook.save(pdf_temp)
+
+    id_xslx, xlsx_temp = tempfile.mkstemp(suffix='.xlsx', text=False)
+    id_pdf, pdf_temp = tempfile.mkstemp(suffix='.pdf', text=False)
     wb.save(xlsx_temp)
     workbook = Workbook(xlsx_temp)
     workbook.save(pdf_temp)
@@ -721,7 +813,11 @@ def report_14(request):
 
     resp = HttpResponse(body, content_type="application/pdf")
     resp['Content-Disposition'] = 'attachment; filename="table.pdf"'
-    pdf_file.close()
+    
+    os.close(id_xslx)
+    os.close(id_pdf)
+    os.remove(xlsx_temp)
+    os.remove(pdf_temp)
     return resp
 
 
@@ -731,15 +827,23 @@ def report_25(request):
     datastr = request.body
     data = json.loads(datastr)
     _izm_inc_id = data['_izm_inc_id']
+    lang = data['lang']
+    doc_obj = izm_inc.objects.get(id=_izm_inc_id)
 
     if (_izm_inc_id == 0):
         return HttpResponse(json.dumps({"status": "Выберите бюджет"}), content_type="application/json", status=400)
 
     # Получаем текущий каталог скрипт
     relative_path = os.path.join(
-        current_directory, "report_template", "report_25.xlsx")
+        current_directory, "report_template", "report_25_" + lang + ".xlsx")
     wb = load_workbook(relative_path)
     ws = wb.active
+
+    if lang == 'kaz':
+        ws._cells[15,8].value = "№" + doc_obj.nom.split('-')[0] + " АНЫКТАМА"
+    else:
+        ws._cells[14,8].value = "СПРАВКА №" + doc_obj.nom.split('-')[0]
+    
 
     border = Border(left=Side(style='thin', color='000000'),
                     right=Side(style='thin', color='000000'),
@@ -802,12 +906,14 @@ def report_25(request):
         cursor.execute(query)
         result = cursor.fetchall()
 
+    total_row = None
     startrow = 20
     cnt = 0
     for row in result:
         color = "FFFFFF"
         # Пропуск общего итога
         if (row[1] == None):
+            total_row = row
             continue
 
         ws.insert_rows(startrow + cnt)
@@ -838,18 +944,28 @@ def report_25(request):
                         1).font = Font(color=color)
         cnt += 1
 
-    xlsx_temp = current_directory + "/temp_files/" + \
-        request.user.username + "_25.xlsx"
-    pdf_temp = current_directory + "/temp_files/" + request.user.username + "_25.pdf"
+    for i, value in enumerate(total_row, 1):
+        # i начинается от 1 по ширине колонок (количество)
+        if i > 18 or value == None:
+            continue
+        cell = ws.cell(row=startrow + cnt, column=i, value=value)
 
+
+    id_xslx, xlsx_temp = tempfile.mkstemp(suffix='.xlsx', text=False)
+    id_pdf, pdf_temp = tempfile.mkstemp(suffix='.pdf', text=False)
     wb.save(xlsx_temp)
     workbook = Workbook(xlsx_temp)
     workbook.save(pdf_temp)
 
     pdf_file = open(pdf_temp, "rb")
     body = FileWrapper(pdf_file)
-
     resp = HttpResponse(body, content_type="application/pdf")
     resp['Content-Disposition'] = 'attachment; filename="table.pdf"'
-    pdf_file.close()
+    
+    os.close(id_xslx)
+    os.close(id_pdf)
+
+    os.remove(xlsx_temp)
+    os.remove(pdf_temp)
+    
     return resp

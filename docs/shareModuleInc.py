@@ -1,61 +1,19 @@
-from datetime import datetime, timedelta
+from datetime import datetime
 from django.db import connection, transaction
 from .models import *
 from openpyxl import load_workbook
 import os
+# from PyPDF2 import PdfReader
 
 
-from PyPDF2 import PdfReader
-
-
-def getincplanbyclassif(organization, date=None, _classification_id=0):
-    if date == None:
-        date = datetime.now()
-
-    date_start = datetime.strptime(
-        str(date.year) + "-01-01 00:00:00", '%Y-%m-%d %H:%M:%S')
-    dateend = date
-
-    query = f"""with utv as (SELECT _classification_id, sum(sm1) as sm1, sum(sm2) as sm2, sum(sm3) as sm3, sum(sm4) as sm4, sum(sm5) as sm5, sum(sm6) as sm6, sum(sm7) as sm7, sum(sm8) as sm8, sum(sm9) as sm9, sum(sm10) as sm10, sum(sm11) as sm11, sum(sm12) as sm12 
-                                FROM public.docs_utv_inc_tbl1
-                                where _organization_id = {organization} and not deleted and _classification_id={_classification_id}  and _date>='{date_start}' and _date <= '{dateend}' 
-                                group by _classification_id),
-                        izm as (SELECT _classification_id,  sum(sm1) as sm1, sum(sm2) as sm2, sum(sm3) as sm3, sum(sm4) as sm4, sum(sm5) as sm5, sum(sm6) as sm6, sum(sm7) as sm7, sum(sm8) as sm8, sum(sm9) as sm9, sum(sm10) as sm10, sum(sm11) as sm11, sum(sm12) as sm12 
-                                FROM public.docs_izm_inc_tbl1
-                                where _organization_id = {organization} and not deleted and _classification_id={_classification_id} and _date>='{date_start}' and _date <= '{dateend}'
-                                group by _classification_id),
-                        union_utv_izm as (select * from utv
-                                            union all
-                                            select * from izm),
-                        classname as (SELECT * FROM public.dirs_classification_income
-                                     WHERE id = ({_classification_id}))
-                    SELECT classname.id as _classification, classname.code as classification_code, classname.name_rus as classification_name,  
-                    COALESCE(sum(sm1),0) as utv1, 
-                    COALESCE(sum(sm2),0) as utv2,
-                    COALESCE(sum(sm3),0) as utv3, 
-                    COALESCE(sum(sm4),0) as utv4, 
-                    COALESCE(sum(sm5),0) as utv5, 
-                    COALESCE(sum(sm6),0) as utv6, 
-                    COALESCE(sum(sm7),0) as utv7, 
-                    COALESCE(sum(sm8),0) as utv8, 
-                    COALESCE(sum(sm9),0) as utv9, 
-                    COALESCE(sum(sm10),0) as utv10, 
-                    COALESCE(sum(sm11),0) as utv11, 
-                    COALESCE(sum(sm12),0) as utv12,
-                    0 as sm1, 0 as sm2, 0 as sm3, 0 as sm4, 0 as sm5, 0 as sm6, 0 as sm7, 0 as sm8, 0 as sm9, 0 as sm10, 0 as sm11, 0 as sm12,
-                    0 as itog1, 0 as itog2, 0 as itog3, 0 as itog4, 0 as itog5, 0 as itog6, 0 as itog7, 0 as itog8, 0 as itog9, 0 as itog10, 0 as itog11, 0 as itog12
-                    FROM union_utv_izm
-                    RIGHT JOIN classname
-                    ON _classification_id = classname.id
-                    GROUP BY classname.id, classification_code, classification_name
-                    ORDER BY _classification"""
-
-    with connection.cursor() as cursor:
-        cursor.execute(query)
-        columns = [col[0] for col in cursor.description]
-        result = [dict(zip(columns, row))
-                  for row in cursor.fetchall()]
-    return result
+def getqsetlist(modelname, userobj, sortcolumn):
+    adm = userobj.groups.filter(name='fulldata').count()==0
+    if adm:
+        id_org = userobj.profile._organization_id
+        queryset = modelname.objects.filter(_organization_id = id_org).order_by(sortcolumn)
+    else:
+        queryset = modelname.objects.order_by(sortcolumn)
+    return queryset
 
 
 def fkrreadxls(path='fkr.xls'):

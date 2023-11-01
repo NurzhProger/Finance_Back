@@ -60,6 +60,7 @@ class parent_organizationsSerializer(serializers.ModelSerializer):
 
 class organizationSerializer(serializers.ModelSerializer):
     _budjet = budjetSerializer()
+    _abp = abpSerializer()
     class Meta:
         model = organization
         fields = '__all__'

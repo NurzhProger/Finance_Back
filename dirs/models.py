@@ -6,12 +6,22 @@ from django.utils import timezone
 # ****************************************************************
 # ****************Модели справочников системные********************
 # ****************************************************************
+class vid_budjet(models.Model):
+    level = models.IntegerField(null=True, blank=True)
+    name_kaz = models.TextField(null=True)
+    name_rus = models.TextField(null=True)
+    def __str__(self):
+        return self.name_rus
+
+
 class budjet(models.Model):
     code = models.TextField(null=True)
     name_kaz = models.TextField(null=True)
     name_rus = models.TextField(null=True)
-    adress = models.TextField(null=True)
+    adress = models.TextField(null=True, blank=True)
     _parent = models.ForeignKey('self', blank=True, null = True, on_delete=models.CASCADE, verbose_name='Бюджет региона')
+    _vid_budjet = models.ForeignKey(vid_budjet, blank=True, null=True, on_delete=models.CASCADE, verbose_name='Вид бюджета')
+
     def __str__(self):
         return self.name_rus
 
