@@ -48,13 +48,14 @@ class organization(models.Model):
     _budjet = models.ForeignKey(budjet, blank=True, on_delete=models.CASCADE, verbose_name='Бюджет региона')
     _abp = models.ForeignKey(abp, blank=True, null=True, on_delete=models.CASCADE, verbose_name='АБП')
     deleted = models.BooleanField(default=False, null=True)
+    is_abp = models.BooleanField(default=False, null=True)
 
 
 class parent_organizations(models.Model):
     _date = models.DateTimeField(null=True, default=datetime(datetime.now().year, 1, 1, 0, 0, 0))
     _organization = models.ForeignKey(organization, blank=True, null=True, on_delete=models.CASCADE, related_name='child_organization')
     _parent = models.ForeignKey(organization, blank=True, null=True, on_delete=models.CASCADE, related_name='parent_organization')
-    # _organization_parent = models.BigIntegerField(blank=True, null=True, verbose_name='Родительская организация')
+
     
 
 
@@ -100,21 +101,21 @@ class class_income(models.Model):
 
 
 class podclass_income(models.Model):
-    code = models.TextField(null=True)
+    code = models.TextField(null=True, db_index=True)
     name_kaz = models.TextField(null=True)
     name_rus = models.TextField(null=True)
     _classs = models.ForeignKey(class_income, blank=True, null=True, on_delete=models.CASCADE, verbose_name='Класс')
 
 
 class spec_income(models.Model):
-    code = models.TextField(null=True)
+    code = models.TextField(null=True, db_index=True)
     name_kaz = models.TextField(null=True)
     name_rus = models.TextField(null=True)
     _podclass = models.ForeignKey(podclass_income, blank=True, null=True, on_delete=models.CASCADE, verbose_name='Подкласс')
 
 
 class classification_income(models.Model):
-    code = models.TextField(null=True)
+    code = models.TextField(null=True, db_index=True)
     name_kaz = models.TextField(null=True)
     name_rus = models.TextField(null=True)
     _category = models.ForeignKey(category_income, blank=True, null=True, on_delete=models.CASCADE, verbose_name='Категория')
@@ -130,7 +131,7 @@ class classification_income(models.Model):
 
 
 # ****************************************************************
-# ****************Модели справочников расхода********************
+# ****************Модели справочников расхода*********************
 # ****************************************************************
 class funcgroup(models.Model):
     code = models.TextField(null=True)
@@ -147,7 +148,7 @@ class funcpodgroup(models.Model):
 
 
 class program(models.Model):
-    code = models.TextField(null=True)
+    code = models.TextField(null=True, db_index=True)
     name_kaz = models.TextField(null=True)
     name_rus = models.TextField(null=True)
     _funcgroup = models.BigIntegerField(blank=True, null=True)
@@ -157,7 +158,7 @@ class program(models.Model):
 
 
 class podprogram(models.Model):
-    code = models.TextField(null=True)
+    code = models.TextField(null=True, db_index=True)
     name_kaz = models.TextField(null=True)
     name_rus = models.TextField(null=True)
     _funcgroup = models.BigIntegerField(blank=True, null=True)
@@ -168,7 +169,7 @@ class podprogram(models.Model):
 
 
 class fkr(models.Model):
-    code = models.TextField(null=True)
+    code = models.TextField(null=True, db_index=True)
     name_kaz = models.TextField(null=True)
     name_rus = models.TextField(null=True)
     _funcgroup = models.BigIntegerField(blank=True, null=True)
@@ -179,7 +180,7 @@ class fkr(models.Model):
 
 
 class spec_exp(models.Model):
-    code = models.TextField(null=True)
+    code = models.TextField(null=True, db_index=True)
     name_kaz = models.TextField(null=True)
     name_rus = models.TextField(null=True)
 
@@ -189,6 +190,20 @@ class spec_exp(models.Model):
 
 
 
+# ****************************************************************
+# *******Модель взаимопогашаемых операции расхода*****************
+# ****************************************************************
+class repay_exp(models.Model):
+    _vid_budjet = models.ForeignKey(vid_budjet, blank=True, on_delete=models.CASCADE, verbose_name='Вид бюджета расхода')
+    _fkr = models.ForeignKey(fkr, blank=True, on_delete=models.CASCADE, verbose_name='ФКР расхода')
+    _date = models.DateTimeField(null=True)
 
 
+# ****************************************************************
+# *******Модель взаимопогашаемых операции дохода*****************
+# ****************************************************************
+class repay_inc(models.Model):
+    _vid_budjet = models.ForeignKey(vid_budjet, blank=True, on_delete=models.CASCADE, verbose_name='Вид бюджета расхода')
+    _classification = models.ForeignKey(classification_income, blank=True, on_delete=models.CASCADE, verbose_name='классификация поступления')
+    _date = models.DateTimeField(null=True)
 

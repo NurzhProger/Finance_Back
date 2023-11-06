@@ -474,7 +474,7 @@ def incgetplanbyclassif(request):
                                 COALESCE(sum(sm12),0) as sm12,
                                 COALESCE(sum(sm1) + sum(sm2) + sum(sm3) + sum(sm4) + sum(sm5) + sum(sm6) + sum(sm7) + sum(sm8) + sum(sm9) + sum(sm10) + sum(sm11) + sum(sm12),0) as god
                             FROM reg
-                            LEFT JOIN classname ON reg._classification_id = classname.id
+                            RIGHT JOIN classname ON reg._classification_id = classname.id
                             GROUP BY _classification"""
 
     with connection.cursor() as cursor:
@@ -1009,6 +1009,10 @@ def izmexpsave(request):
     payments = data['payments']
     obligs = data['obligats']
 
+    if not len(payments)==len(obligs):
+        response_data = {"status": "Количество строк в платежах и в обязательствам разные."}
+        return HttpResponse(json.dumps(response_data), content_type="application/json", status=400)
+
     try:
         org = organization.objects.get(id=doc_req['_organization']['id'])
         budjet_id = org._budjet.id
@@ -1421,18 +1425,31 @@ def svodexpadd(request):
     datastr = request.body
     data = json.loads(datastr)
     id_doc = data['id']
-    if id_doc==0:
-        cnt = svod_exp.objects.filter(_organization_id = data['_organization']['id']).count()
-        doc = svod_exp()
-        doc.nom = str(cnt + 1)
-    else:
-        doc = svod_exp.objects.get(id=id_doc)
-    
-    doc._date = datetime.strptime(data['_date'], '%d.%m.%Y %H:%M:%S')
-    doc._organization_id = data['_organization']['id']
-    doc.save()
-    return HttpResponse(json.dumps({"status": "Успешно записан", "doc_id":doc.id, "nom":doc.nom}), content_type="application/json", status=200)
 
+    try:
+        with transaction.atomic():
+            if id_doc==0:
+                cnt = svod_exp.objects.filter(_organization_id = data['_organization']['id']).count()
+                doc = svod_exp()
+                doc.nom = str(cnt + 1)
+            else:
+                doc = svod_exp.objects.get(id=id_doc)
+            
+            doc._date = datetime.strptime(data['_date'], '%d.%m.%Y %H:%M:%S')
+            doc._organization_id = data['_organization']['id']
+            doc.save()
+
+            reg_svod_exp.objects.filter(_svod_exp_id = doc.id).delete()
+            tbl = svod_exp_tbl.objects.filter(_svod_exp_id = doc.id)
+            for item in tbl:
+                new = reg_svod_exp()
+                new._izm_exp_id = item._izm_exp_id
+                new._svod_exp_id = doc.id
+                new.save()
+
+            return HttpResponse(json.dumps({"status": "Успешно записан", "doc_id":doc.id, "nom":doc.nom}), content_type="application/json", status=200)
+    except Exception as err:
+        return response.Response({"status":"Ошибка добавления документа."})
 
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
@@ -1464,31 +1481,47 @@ def svodexpitem(request, id_doc):
 @permission_classes([IsAuthenticated])
 def svodexp_add_doc(request, id_doc):
     
-    datastr = request.body
-    data = json.loads(datastr)
-    doc_izm = izm_exp.objects.get(id = data['doc_id'])
-    tbl = svod_exp_tbl()
-    tbl._date = doc_izm._date
-    tbl._izm_exp = doc_izm
-    tbl._organization = doc_izm._organization
-    tbl._svod_exp_id = id_doc
-    tbl.save()
+    try:
+        with transaction.atomic():
+            datastr = request.body
+            data = json.loads(datastr)
+            doc_izm = izm_exp.objects.get(id = data['doc_id'])
+            tbl = svod_exp_tbl()
+            tbl._date = doc_izm._date
+            tbl._izm_exp = doc_izm
+            tbl._organization = doc_izm._organization
+            tbl._svod_exp_id = id_doc
+            tbl.save()
+
+            reg = reg_svod_exp()
+            reg._izm_exp_id = data['doc_id']
+            reg._svod_exp_id = id_doc
+            reg.save()
+
+            jsondata = object_svod_get(id_doc=id_doc)
+            return response.Response(jsondata)
+    except Exception as err:
+        return response.Response({"status":"Ошибка добавления документа."})
     
-    jsondata = object_svod_get(id_doc=id_doc)
-    return response.Response(jsondata)
 
 
 @api_view(['POST'])
 @permission_classes([IsAuthenticated])
 def svodexp_del_doc(request, id_doc):
-    datastr = request.body
-    data = json.loads(datastr)
-    tbl = svod_exp_tbl.objects.get(id = data['doc_id'])
-    if tbl._svod_exp_id == id_doc:
-        tbl.delete()  
-    jsondata = object_svod_get(id_doc=id_doc)
-    return response.Response(jsondata)
+    try:
+        with transaction.atomic():
+            datastr = request.body
+            data = json.loads(datastr)
+            tbl = svod_exp_tbl.objects.get(id = data['doc_id'])
+            if tbl._svod_exp_id == id_doc:
+                tbl.delete()  
 
+            reg_svod_exp.objects.filter(_svod_exp_id = id_doc, _izm_exp_id = tbl._izm_exp_id)
+
+            jsondata = object_svod_get(id_doc=id_doc)
+            return response.Response(jsondata)
+    except Exception as err:
+        return response.Response({"status":"Ошибка удаления документа."})
 
 
 @api_view(['DELETE'])

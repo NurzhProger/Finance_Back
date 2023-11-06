@@ -140,3 +140,46 @@ class classificatinIncDetailSerializer(serializers.ModelSerializer):
     class Meta:
         model = classification_income
         fields = '__all__'
+
+
+class vid_budjetSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = vid_budjet
+        fields = ['id', 'name_rus']
+
+
+class fkr_only_code_Serializer(serializers.ModelSerializer):
+    class Meta:
+        model = fkr
+        fields = ['id', 'code']
+
+
+class classificatin_MIN_IncSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = classification_income
+        fields = ('id', 'code')
+
+
+class repayExpSerializer(serializers.ModelSerializer):
+    _fkr = fkr_only_code_Serializer()
+    _vid_budjet = vid_budjetSerializer()
+    class Meta:
+        model = repay_exp
+        fields = '__all__'
+
+
+class repayIncSerializer(serializers.ModelSerializer):
+    _classification = classificatin_MIN_IncSerializer()
+    _vid_budjet = vid_budjetSerializer()
+    class Meta:
+        model = repay_inc
+        fields = '__all__'
+
+
+
+
+
+
+
+
+

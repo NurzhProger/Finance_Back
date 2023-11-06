@@ -48,11 +48,6 @@ urlpatterns = [
     path('classificationincedit', views.classificationincedit, name='index'),
     path('classificationincdelete/<int:id>', views.classificationincdelete, name='index'),
 
-
-    path('fkrupdate', views.fkrupdate, name='index'),
-    path('ekrupdate', views.ekrupdate, name='index'),
-    path('inc_dir_import', views.inc_dir_import, name='index'),
-
     path('funcgrouplist', views.funcgrouplist, name='index'),
     path('funcpodgrouplist', views.funcpodgrouplist, name='index'),
     path('abplist', views.abplist, name='index'),
@@ -60,4 +55,14 @@ urlpatterns = [
     path('podprogramlist', views.podprogramlist, name='index'),
     path('fkrlist', views.fkrlist, name='index'),
     path('specexplist', views.specexplist, name='index'),
+
+
+    path('fkrupdate', views.fkrupdate, name='index'),
+    path('ekrupdate', views.ekrupdate, name='index'),
+    path('inc_dir_import', views.inc_dir_import, name='index'),
+
+
+    path('repayexplist', views.repayexplist, name='index'),
+    path('repayinclist', views.repayinclist, name='index'),
+    path('repayexportqazna', views.repayexportqazna, name='index'),
 ]

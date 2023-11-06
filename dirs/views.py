@@ -3,7 +3,8 @@ from rest_framework import pagination
 from rest_framework import response
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import IsAuthenticated
-import json
+import json, requests
+from requests.auth import HTTPBasicAuth
 from django.db.models import Q
 from django.contrib.auth.models import User
 from django.db import connection, transaction
@@ -51,18 +52,28 @@ def organizationsave(request):
     name_kaz = data['name_kaz']
     name_rus = data['name_rus']
     _budjet = data['_budjet']
+    _abp = data['_abp']
+    codeorg = data['codeorg']
+    is_abp = data['is_abp']
 
-    if id == 0:
-        new = organization()
-    else:
-        new = organization.objects.get(id=id)
-    new.bin = bin
-    new.name_kaz = name_kaz
-    new.name_rus = name_rus
-    new.adress = adress
-    new._budjet_id = _budjet['id']
-    new.save()
-    return HttpResponse('{"status":"Успешно добавлен родитель"}', content_type="application/json")
+    try:
+        with transaction.atomic():
+            if id == 0:
+                new = organization()
+            else:
+                new = organization.objects.get(id=id)
+            new.bin = bin
+            new.name_kaz = name_kaz
+            new.name_rus = name_rus
+            new.adress = adress
+            new._budjet_id = _budjet['id']
+            new._abp_id = _abp['id']
+            new.is_abp = is_abp
+            new.codeorg = codeorg
+            new.save()
+            return HttpResponse('{"status":"Успешно сохранен"}', content_type="application/json")
+    except Exception as err:
+        return HttpResponse('{"status":"Ошибка сохранения организации"}', content_type="application/json", status = 400)
 
 
 @api_view(['DELETE'])
@@ -272,29 +283,8 @@ def getinfo(request):
 @permission_classes([IsAuthenticated])
 def cleartoken(request):
     user_id = request.user.pk
-    return HttpResponse('{"detail": "token cleared", "changepass":"False"}', content_type="application/json")
-    
-    # Token.objects.filter(user_id = user_id).delete()
-    # objs = loginhistory.objects.filter(username = request.user).order_by('-id')[:5]
-    # err = 0
-    # lasttime = datetime.now()
-
-    # for itm in objs:
-    #     if itm.status == 'error':
-    #         err +=1
-    #         lasttime = itm._date
-
-    # raznica = (datetime.now() - lasttime).total_seconds()/60
-    # if err>=5 and raznica<=2:
-    #     return HttpResponse('{"detail": "Вы заблокированы на 2 минуты."}', content_type="application/json", status = 400)
-        
-    # profileobj = profile.objects.get(_user_id = user_id)
-
-    # diff_days = (datetime.now() - profileobj._date_change).days
-    # if diff_days>60:
-    #     return HttpResponse('{"detail": "token cleared", "changepass":"True"}', content_type="application/json")
-    # else:
-    #     return HttpResponse('{"detail": "token cleared", "changepass":"' + str(profileobj.changepass) + '"}', content_type="application/json")
+    profileobj = profile.objects.get(_user_id = user_id)
+    return HttpResponse('{"detail": "token cleared", "changepass":"' + str(profileobj.changepass) + '"}', content_type="application/json")
 
 
 
@@ -913,26 +903,44 @@ def podprogramlist(request):
     return paginator.get_paginated_response(serial.data)
 
 
-@api_view(['GET'])
+@api_view(['GET', 'POST'])
 @permission_classes([IsAuthenticated])
 def fkrlist(request):
-    try:
+    if request.method == 'POST':
+        body = json.loads(request.body)
+        exclude = body['exclude']
+        search = body['search']
+        _organization = body['_organization']
+        try:
+            abp_id = organization.objects.get(id=_organization)._abp.id
+            queryset = fkr.objects.filter(Q(code__icontains=search) & ~Q(id__in = exclude) & Q(_abp = abp_id))
+        except:
+            queryset = fkr.objects.filter(Q(code__icontains=search) & ~Q(id__in = exclude))
+    else:
         search = request.GET['search']
-    except:
-        search = ''
-    queryset = fkr.objects.filter(Q(code__icontains=search)|Q(name_rus__icontains=search))
+        queryset = fkr.objects.filter(Q(code__icontains=search))
 
-    # queryset = fkr.objects.all()
     paginator = CustomPagination()
     paginated_queryset = paginator.paginate_queryset(queryset, request)
     serial = shareSerializer(paginated_queryset, many=True)
     return paginator.get_paginated_response(serial.data)
 
 
-@api_view(['GET'])
+@api_view(['GET', 'POST'])
 @permission_classes([IsAuthenticated])
 def specexplist(request):
-    queryset = spec_exp.objects.all()
+    if request.method == 'POST':
+        body = json.loads(request.body)
+        exclude = body['exclude']
+        search = body['search']
+        queryset = spec_exp.objects.filter(Q(code__icontains=search) & ~Q(id__in = exclude))
+    else:
+        try:
+            search = request.GET['search']
+        except:
+            search = ''
+        queryset = spec_exp.objects.filter(Q(code__icontains=search))
+
     paginator = CustomPagination()
     paginated_queryset = paginator.paginate_queryset(queryset, request)
     serial = shareSerializer(paginated_queryset, many=True)
@@ -960,5 +968,87 @@ def inc_dir_import(request):
     workbook = inc_dir_import_xls()
     return HttpResponse('{"status": "Загружены спр по доходам"}', content_type="application/json", status=200)
 
+
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def repayexplist(request):
+    queryset = repay_exp.objects.all()
+    paginator = CustomPagination()
+    paginated_queryset = paginator.paginate_queryset(queryset, request)
+    serial = repayExpSerializer(paginated_queryset, many=True)
+    return paginator.get_paginated_response(serial.data)
+
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def repayinclist(request):
+    queryset = repay_inc.objects.all()
+    paginator = CustomPagination()
+    paginated_queryset = paginator.paginate_queryset(queryset, request)
+    serial = repayIncSerializer(paginated_queryset, many=True)
+    return paginator.get_paginated_response(serial.data)
+
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def repayexportqazna(request):
+    response_inc = requests.get('https://kzo.qazna24.kz/budjet/hs/getrepay/inc', auth=HTTPBasicAuth('administrator3', 'qaz123/*-'), verify=False)
+    response_exp = requests.get('https://kzo.qazna24.kz/budjet/hs/getrepay/exp', auth=HTTPBasicAuth('administrator3', 'qaz123/*-'), verify=False)
+
+    masvid = []
+    vids = vid_budjet.objects.all().order_by('level')
+    for i in vids:
+        masvid.append({"level": i.level, "id":i.id})
+
+
+    js_inc = json.loads(response_inc.text)
+    js_exp = json.loads(response_exp.text)
+
+    try:
+        with transaction.atomic():
+            # repay_inc.objects.all().delete()
+            repay_exp.objects.all().delete()
+            
+            # bulk_inc = []
+            # for item in js_inc:
+            #     id_clssfctn = 0
+            #     id_vid = masvid[int(item['level_budjet'])-1]
+            #     try:
+            #         id_clssfctn = classification_income.objects.get(code = item['code']).id
+            #         # print('not found: ', item['code'])
+            #     except:
+                    
+            #         continue
+
+            #     new = repay_inc()
+            #     new._classification_id = id_clssfctn
+            #     new._vid_budjet_id = id_vid['level']
+            #     bulk_inc.append(new)
+
+
+            bulk_exp = []
+            for item in js_exp:
+                id_fkr = 0
+                id_vid = masvid[int(item['level_budjet'])-1]
+                try:
+                    id_fkr = fkr.objects.get(code = item['code']).id
+                    
+                except:
+                    print('not found: ', item['code'])
+                    continue
+
+                new = repay_exp()
+                new._fkr_id = id_fkr
+                new._vid_budjet_id = id_vid['level']
+                bulk_exp.append(new)
+                
+            a = 1/0
+            # repay_inc.objects.bulk_create(bulk_inc)
+            repay_exp.objects.bulk_create(bulk_exp)
+    except Exception as err:
+        print(err)
+            
+    return HttpResponse('"status": "Завершен импорт из Казна"', content_type="application/json")
 
 
