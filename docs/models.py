@@ -443,6 +443,8 @@ class svod_exp_tbl(models.Model):
 class reg_svod_exp(models.Model):
     _izm_exp = models.ForeignKey(izm_exp, blank=True, on_delete=models.CASCADE, verbose_name='Классификация документа')
     _svod_exp = models.ForeignKey(svod_exp, null=True, on_delete=models.CASCADE, verbose_name='svod id')
+    _organization = models.ForeignKey(organization, null=True, on_delete=models.CASCADE, verbose_name='Организация документа')
+    _date = models.DateTimeField(null=True)
 
 
 

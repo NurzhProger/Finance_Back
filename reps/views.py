@@ -1043,9 +1043,11 @@ def report8_10(request):
 
     light_gray_fill = PatternFill(start_color='FFDDDDDD', end_color='FFDDDDDD', fill_type='solid')
 
-    query = f"""with union_utv_izm as (SELECT _fkr_id, _spec_id, _organization_id, sum(sm1) as sm1, sum(sm2) as sm2, sum(sm3) as sm3, sum(sm4) as sm4, sum(sm5) as sm5, sum(sm6) as sm6, sum(sm7) as sm7, sum(sm8) as sm8, sum(sm9) as sm9, sum(sm10) as sm10, sum(sm11) as sm11, sum(sm12) as sm12 
+    query = f"""with 
+                    svod_docs as (SELECT _izm_exp_id FROM public.docs_reg_svod_exp where _organization_id = {org_id} and _date>='{date_start}' and _date<='{date_end}'),    
+                    union_utv_izm as (SELECT _fkr_id, _spec_id, _organization_id, sum(sm1) as sm1, sum(sm2) as sm2, sum(sm3) as sm3, sum(sm4) as sm4, sum(sm5) as sm5, sum(sm6) as sm6, sum(sm7) as sm7, sum(sm8) as sm8, sum(sm9) as sm9, sum(sm10) as sm10, sum(sm11) as sm11, sum(sm12) as sm12 
                             FROM public.docs_reg_exp_{tip_rep}
-                            WHERE _organization_id in {tuple(mass_ids)} and _date>='{date_start}' and _date<='{date_end}'
+                            WHERE _izm_exp_id in (select _izm_exp_id from svod_docs)
                             GROUP BY _fkr_id, _spec_id,_organization_id
                             HAVING not (sum(sm1)+sum(sm2)+sum(sm3)+sum(sm4)+sum(sm5)+sum(sm6)+sum(sm7)+sum(sm8)+sum(sm9)+sum(sm10)+sum(sm11)+sum(sm12))=0),
                     org as (SELECT * FROM public.dirs_organization

@@ -1434,18 +1434,24 @@ def svodexpadd(request):
                 doc.nom = str(cnt + 1)
             else:
                 doc = svod_exp.objects.get(id=id_doc)
-            
+                if doc.deleted:
+                    tbl = svod_exp_tbl.objects.filter(_svod_exp_id = doc.id)
+                    reg_svod_exp.objects.filter(_svod_exp_id = doc.id).delete()
+                    for item in tbl:
+                        item.deleted = False
+                        item.save()
+
+                        new = reg_svod_exp()
+                        new._izm_exp_id = item._izm_exp_id
+                        new._svod_exp_id = doc.id
+                        new._organization_id = data['_organization']['id']
+                        new._date = datetime.strptime(data['_date'], '%d.%m.%Y %H:%M:%S')
+                        new.save()
+
             doc._date = datetime.strptime(data['_date'], '%d.%m.%Y %H:%M:%S')
             doc._organization_id = data['_organization']['id']
+            doc.deleted = False
             doc.save()
-
-            reg_svod_exp.objects.filter(_svod_exp_id = doc.id).delete()
-            tbl = svod_exp_tbl.objects.filter(_svod_exp_id = doc.id)
-            for item in tbl:
-                new = reg_svod_exp()
-                new._izm_exp_id = item._izm_exp_id
-                new._svod_exp_id = doc.id
-                new.save()
 
             return HttpResponse(json.dumps({"status": "Успешно записан", "doc_id":doc.id, "nom":doc.nom}), content_type="application/json", status=200)
     except Exception as err:
@@ -1496,6 +1502,8 @@ def svodexp_add_doc(request, id_doc):
             reg = reg_svod_exp()
             reg._izm_exp_id = data['doc_id']
             reg._svod_exp_id = id_doc
+            reg._organization = doc_izm._organization
+            reg._date = doc_izm._date
             reg.save()
 
             jsondata = object_svod_get(id_doc=id_doc)
@@ -1516,7 +1524,7 @@ def svodexp_del_doc(request, id_doc):
             if tbl._svod_exp_id == id_doc:
                 tbl.delete()  
 
-            reg_svod_exp.objects.filter(_svod_exp_id = id_doc, _izm_exp_id = tbl._izm_exp_id)
+            reg_svod_exp.objects.filter(_svod_exp_id = id_doc, _izm_exp_id = tbl._izm_exp_id).delete()
 
             jsondata = object_svod_get(id_doc=id_doc)
             return response.Response(jsondata)
@@ -1531,17 +1539,18 @@ def svodexpdelete(request):
     docs = req['mass_doc_id']
     shift = req['shift']
     is_admin = (request.user.groups.filter(name='fulldata').count()>0)
+
+    errors = ''
     if shift and is_admin:
         try:
             with transaction.atomic():
                 for id_doc in docs:
-                    tbldel = svod_exp_tbl.objects.filter(_svod_exp_id=id_doc)
-                    for item in tbldel:
-                        item.delete()
+                    svod_exp_tbl.objects.filter(_svod_exp_id=id_doc).delete()
+                    reg_svod_exp.objects.filter(_svod_exp_id=id_doc).delete()
                     docdel = svod_exp.objects.get(id=id_doc)
                     docdel.delete()   
         except Exception as err:
-            a = 1
+            errors = 'Ошибка удаления документа'
     else:
         try:
             with transaction.atomic():
@@ -1552,11 +1561,15 @@ def svodexpdelete(request):
                         item.save()
                     docdel = svod_exp.objects.get(id=id_doc)
                     docdel.deleted = True
-                    docdel.save()   
+                    docdel.save()  
+                    reg_svod_exp.objects.filter(_svod_exp_id=id_doc).delete() 
         except Exception as err:
-            a = 1
+            errors = 'Ошибка удаления документа'
 
-    return response.Response({"status":"успешно"})
+    if errors=='':
+        return response.Response({"status":"успешно"})
+    else:
+        return response.Response({"status":"Ошибка удаления документа"}, status=400)
 
 
 
