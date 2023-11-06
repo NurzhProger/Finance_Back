@@ -76,7 +76,7 @@ def object_svod_get(id_doc):
                                 where id in (select _organization_id from izm_docs)
                                 )
                                 
-                    select doc.id, izm_docs.id as izm_id, izm_docs.nom,  to_char(izm_docs._date, 'dd.mm.yyyy hh:mm:ss') as _date, org.id as _organization_id, org.name_rus as _organization_name
+                    select doc.id, izm_docs.id as izm_id, izm_docs.deleted, izm_docs.nom,  to_char(izm_docs._date, 'dd.mm.yyyy hh:mm:ss') as _date, org.id as _organization_id, org.name_rus as _organization_name
                     from doc
                     left join izm_docs
                     on doc._izm_exp_id = izm_docs.id

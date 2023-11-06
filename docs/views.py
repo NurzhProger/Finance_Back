@@ -2245,12 +2245,12 @@ def import420delete(request):
         try:
             with transaction.atomic():
                 for id_doc in docs:
-                    tbldel = import420_tbl1.objects.filter(_import420_id=id_doc).update(deleted=True)
-                    # for item in tbldel:
-                    #     item.deleted = True
-                    #     item.save()
+                    tbldel = import420_tbl1.objects.filter(_import420_id=id_doc)
+                    for item in tbldel:
+                        item.deleted = not item.deleted
+                        item.save()
                     docdel = import420.objects.get(id=id_doc)
-                    docdel.deleted = True
+                    docdel.deleted = not docdel.deleted
                     docdel.save()   
         except Exception as err:
             a = 1
