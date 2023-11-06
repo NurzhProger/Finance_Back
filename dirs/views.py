@@ -83,6 +83,7 @@ def organizationdelete(request, id):
         orgitem = organization.objects.get(id=id)
         orgitem.deleted = not orgitem.deleted
         orgitem.save()
+        # orgitem.delete()
     except:
         return HttpResponse('{"status": "Ошибка удаления организации"}', content_type="application/json", status=400)
 
@@ -172,6 +173,9 @@ def useritem(request, id):
 def usersave(request):
     datastr = request.body
     data = json.loads(datastr)
+
+    if data['organization']['id']==0:
+        return HttpResponse('{"status": "Необходимо выбрать организацию"}', content_type="application/json", status=400)
 
     try:
         with transaction.atomic():
