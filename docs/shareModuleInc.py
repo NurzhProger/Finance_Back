@@ -6,11 +6,18 @@ import os
 # from PyPDF2 import PdfReader
 
 
-def getqsetlist(modelname, userobj, sortcolumn):
-    adm = userobj.groups.filter(name='fulldata').count()==0
-    if adm:
-        id_org = userobj.profile._organization_id
-        queryset = modelname.objects.filter(_organization_id = id_org).order_by(sortcolumn)
+def getqsetlist(modelname, userobj, sortcolumn, tip=None):
+    not_adm = userobj.groups.filter(name='fulldata1').count()==0
+    id_org = userobj.profile._organization_id
+    if not_adm:
+        if tip=='select':
+            ids = [id_org]
+            orgs = parent_organizations.objects.filter(_parent_id = id_org).values('_organization_id')
+            for i in orgs:
+                ids.append(i['_organization_id'])
+            queryset = modelname.objects.filter(_organization_id__in = ids).order_by(sortcolumn)
+        else:
+            queryset = modelname.objects.filter(_organization_id = id_org).order_by(sortcolumn)
     else:
         queryset = modelname.objects.order_by(sortcolumn)
     return queryset

@@ -881,10 +881,13 @@ def utvexpdelete(request, id):
 # ****************************************************************
 # ***Сервисы изменения плана***
 # ****************************************************************
-@api_view(['GET'])
+@api_view(['GET', 'POST'])
 @permission_classes([IsAuthenticated])
 def izmexplist(request):
-    queryset = getqsetlist(izm_exp, request.user, 'nom')
+    body = json.loads(request.body)
+    search = body['search']
+    tip = body['type']
+    queryset = getqsetlist(izm_exp, request.user, 'nom', tip)
     paginator = CustomPagination()
     paginated_queryset = paginator.paginate_queryset(queryset, request)
     serial = izm_exp_serial(paginated_queryset, many=True)
@@ -1499,10 +1502,12 @@ def svodexp_add_doc(request, id_doc):
             tbl._svod_exp_id = id_doc
             tbl.save()
 
+            svodobj = svod_exp.objects.get(id = id_doc)
+
             reg = reg_svod_exp()
             reg._izm_exp_id = data['doc_id']
             reg._svod_exp_id = id_doc
-            reg._organization = doc_izm._organization
+            reg._organization = svodobj._organization
             reg._date = doc_izm._date
             reg.save()
 

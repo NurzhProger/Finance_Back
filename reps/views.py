@@ -999,10 +999,9 @@ def report8_10(request):
     mass_ids = []
     mass_ids.append(0)
     mass_ids.append(org_id)
-    child_orgs = parent_organizations.objects.filter(_parent_id = org_id)
+    child_orgs = parent_organizations.objects.filter(_parent_id = org_id).values('_organization_id')
     for item in child_orgs:
-        if item._organization.is_abp:
-            mass_ids.append(item._organization.id)
+        mass_ids.append(item['_organization_id'])
     org_obj = organization.objects.get(id=org_id)
         
       
@@ -1047,7 +1046,8 @@ def report8_10(request):
                     svod_docs as (SELECT _izm_exp_id FROM public.docs_reg_svod_exp where _organization_id = {org_id} and _date>='{date_start}' and _date<='{date_end}'),    
                     union_utv_izm as (SELECT _fkr_id, _spec_id, _organization_id, sum(sm1) as sm1, sum(sm2) as sm2, sum(sm3) as sm3, sum(sm4) as sm4, sum(sm5) as sm5, sum(sm6) as sm6, sum(sm7) as sm7, sum(sm8) as sm8, sum(sm9) as sm9, sum(sm10) as sm10, sum(sm11) as sm11, sum(sm12) as sm12 
                             FROM public.docs_reg_exp_{tip_rep}
-                            WHERE _izm_exp_id in (select _izm_exp_id from svod_docs)
+                            WHERE (_izm_exp_id in (select _izm_exp_id from svod_docs)) or (_izm_exp_id is null and _organization_id in {tuple(mass_ids)})
+                            or (_organization_id = {org_id})
                             GROUP BY _fkr_id, _spec_id,_organization_id
                             HAVING not (sum(sm1)+sum(sm2)+sum(sm3)+sum(sm4)+sum(sm5)+sum(sm6)+sum(sm7)+sum(sm8)+sum(sm9)+sum(sm10)+sum(sm11)+sum(sm12))=0),
                     org as (SELECT * FROM public.dirs_organization
