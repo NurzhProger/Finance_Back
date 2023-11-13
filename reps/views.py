@@ -306,8 +306,7 @@ def report3335(request):
     tip_rep = data['tip_rep']
 
     # Получаем текущий каталог скрипта
-    relative_path = os.path.join(
-        current_directory, "report_template", "report_3335.xlsx")
+    relative_path = os.path.join(current_directory, "report_template", "report_3335.xlsx")
     wb = load_workbook(relative_path)
     ws = wb.active
 
