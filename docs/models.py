@@ -181,15 +181,16 @@ class utv_exp_obl(models.Model):
     sm12 = models.FloatField(null=True)
     
 
-# Изменение плана расхода по платежам
+# Изменение плана расхода
 class izm_exp(models.Model):
     nom = models.TextField(null=True)
-    _date = models.DateTimeField(null=True)
+    _date = models.DateTimeField(null=True, db_index=True)
     _organization = models.ForeignKey(organization, blank=True, on_delete=models.CASCADE, verbose_name='Организация документа')
     _budjet = models.ForeignKey(budjet, blank=True, on_delete=models.CASCADE, verbose_name='Бюджет документа')
     _type_izm_doc = models.ForeignKey(type_izm_doc, null=True, on_delete=models.CASCADE, verbose_name='Тип справки')
     deleted = models.BooleanField(default=False, null=True)
-    doc_hash = models.TextField(null=True)
+    status = models.TextField(null=True, default="new", db_index=True)    # "new" - новый документ, "send" - отправлен на рассм-е, "error" - отказ из за ошибок
+    # doc_hash = models.TextField(null=True)
 
 
 # ТЧ изменения плана по платежам
@@ -256,7 +257,7 @@ class reg_exp_pay(models.Model):
     _spec = models.ForeignKey(spec_exp, blank=True, on_delete=models.CASCADE, verbose_name='Специфика')
     _organization = models.ForeignKey(organization, null=True, on_delete=models.CASCADE, verbose_name='Организация документа')
     _budjet = models.ForeignKey(budjet, blank=True, null=True, on_delete=models.CASCADE, verbose_name='Бюджет документа')
-    _date = models.DateTimeField(null=True)
+    _date = models.DateTimeField(null=True, db_index=True)
 
     # Суммы изменении
     god = models.FloatField(null=True, default=0)
@@ -338,7 +339,7 @@ class reg_exp_obl(models.Model):
     _spec = models.ForeignKey(spec_exp, blank=True, on_delete=models.CASCADE, verbose_name='Специфика')
     _organization = models.ForeignKey(organization, null=True, on_delete=models.CASCADE, verbose_name='Организация документа')
     _budjet = models.ForeignKey(budjet, blank=True, null=True, on_delete=models.CASCADE, verbose_name='Бюджет документа')
-    _date = models.DateTimeField(null=True)
+    _date = models.DateTimeField(null=True, db_index=True)
 
     # Суммы изменении
     god = models.FloatField(null=True, default=0)
@@ -428,12 +429,16 @@ class svod_exp(models.Model):
     _date = models.DateTimeField(null=True)
     _organization = models.ForeignKey(organization, blank=True, on_delete=models.CASCADE, verbose_name='Организация документа')
     deleted = models.BooleanField(default=False, null=True)
+    status = models.TextField(null=True, default="new", db_index=True)    # "new" - новый документ, "send" - отправлен на рассм-е, "error" - отказ из за ошибок
+    _budjet = models.ForeignKey(budjet, blank=True, on_delete=models.CASCADE, verbose_name='Бюджет документа', null=True)
+    _type_izm_doc = models.ForeignKey(type_izm_doc, null=True, on_delete=models.CASCADE, verbose_name='Тип справки')
 
 
 # ТЧ свода справок по расходам
 class svod_exp_tbl(models.Model):
     _svod_exp = models.ForeignKey(svod_exp, blank=True, null=True, on_delete=models.CASCADE, verbose_name='ИД документа')
-    _izm_exp = models.ForeignKey(izm_exp, blank=True, on_delete=models.CASCADE, verbose_name='Классификация документа')
+    _izm_exp = models.ForeignKey(izm_exp, null=True, on_delete=models.CASCADE, verbose_name='Классификация документа')
+    _svod_exp1 = models.ForeignKey(svod_exp, null=True, on_delete=models.CASCADE, related_name="svod_in_svod")
     _organization = models.ForeignKey(organization, null=True, on_delete=models.CASCADE, verbose_name='Организация документа')
     _date = models.DateTimeField(null=True)
     deleted = models.BooleanField(default=False, null=True)
@@ -441,10 +446,11 @@ class svod_exp_tbl(models.Model):
 
 # ТЧ свода справок по расходам
 class reg_svod_exp(models.Model):
-    _izm_exp = models.ForeignKey(izm_exp, blank=True, on_delete=models.CASCADE, verbose_name='Классификация документа')
-    _svod_exp = models.ForeignKey(svod_exp, null=True, on_delete=models.CASCADE, verbose_name='svod id')
+    _izm_exp = models.ForeignKey(izm_exp, null=True, on_delete=models.CASCADE, verbose_name='Классификация документа')
+    _svod_exp = models.ForeignKey(svod_exp, blank=True, on_delete=models.CASCADE, verbose_name='svod id')
     _organization = models.ForeignKey(organization, null=True, on_delete=models.CASCADE, verbose_name='Организация документа')
     _date = models.DateTimeField(null=True)
+    _svod_exp_tbl = models.ForeignKey(svod_exp_tbl, null=True, on_delete=models.CASCADE, verbose_name='') #ссылка на номер в таблице документов, для удаления нужно
 
 
 

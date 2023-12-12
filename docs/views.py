@@ -9,13 +9,14 @@ from django.db import connection, transaction
 from .models import *
 from .serializer import *
 # Общий модуль импортируем
-from .shareModuleInc import object_svod_get, getqsetlist
+from docs.shareModuleInc import object_svod_get, getqsetlist, simplepagination
 from PyPDF2 import PdfReader
 
 
 class CustomPagination(pagination.LimitOffsetPagination):
     default_limit = 25  # Количество объектов на странице по умолчанию
     max_limit = 50     # Максимальное количество объектов на странице
+
 
 
 
@@ -844,7 +845,12 @@ def utvexpsave(request):
             if len(result) > 0:
                 transaction.rollback("Суммы платежей и обязательства не совпадают")
 
-            return HttpResponse('{"status": "Успешно записан документ"}', content_type="application/json")
+            otvet = {
+                "id_doc": itemdoc.id,
+                "nom": itemdoc.nom,
+                "status": "Успешно записан документ"
+            }
+            return HttpResponse( json.dumps(otvet), content_type="application/json")
 
     except Exception as e:
         response_data = {
@@ -892,6 +898,69 @@ def izmexplist(request):
     paginated_queryset = paginator.paginate_queryset(queryset, request)
     serial = izm_exp_serial(paginated_queryset, many=True)
     return paginator.get_paginated_response(serial.data)
+
+
+@api_view(['GET', 'POST'])
+@permission_classes([IsAuthenticated])
+def izmexpselect(request):
+    offset = request.GET.get('offset', 1)
+    limit = request.GET.get('limit', 25)
+
+    body = json.loads(request.body)
+    _organization_id = body['_organization_id']
+    _type_izm_doc_id = body['_type_izm_doc_id']
+    _date = datetime.strptime(body['_date'], '%d.%m.%Y %H:%M:%S')
+
+
+    query = f"""WITH    svoddocs as (SELECT id, _organization_id, _type_izm_doc_id, _date, extract(YEAR from _date) as god, extract(MONTH from _date) as mes 
+                                    FROM docs_svod_exp 
+                                    WHERE _organization_id = {_organization_id} and extract(YEAR from _date)={_date.year} and extract(MONTH from _date)={_date.month}
+                                            and _type_izm_doc_id = {_type_izm_doc_id}),
+	 
+                        existdocs as (SELECT COALESCE(_izm_exp_id,0) as _izm_exp_id, COALESCE(_svod_exp1_id, 0) as _svod_exp1_id 
+                                    FROM docs_svod_exp_tbl 
+                                    WHERE _svod_exp_id in (select id from svoddocs)),
+     
+                        parentorgs as (SELECT _organization_id 
+                                    FROM dirs_parent_organizations 
+                                    WHERE _parent_id in (select _organization_id from svoddocs)),
+
+                        orgs as (SELECT id, name_rus 
+                                FROM dirs_organization 
+                                WHERE id in (select _organization_id from parentorgs union all select _organization_id from svoddocs)), 
+
+                        izmexp as (SELECT 'izm' as tipdoc, id, nom, _date, _organization_id, _type_izm_doc_id 
+                                FROM docs_izm_exp
+                                WHERE _organization_id in (select id from orgs) and _type_izm_doc_id in (select _type_izm_doc_id from svoddocs) 
+                                        and (extract(YEAR from _date), extract(MONTH from _date)) in (select god, mes from svoddocs) 
+				                        and status = 'send' and not id in (select _izm_exp_id from existdocs)),
+
+                        svodexp as (SELECT 'svod' as tipdoc, id, nom, _date, _organization_id, _type_izm_doc_id 
+                                    FROM docs_svod_exp
+                                    WHERE _organization_id in (select id from orgs) and _type_izm_doc_id in (select _type_izm_doc_id from svoddocs)
+                                            and (extract(YEAR from _date), extract(MONTH from _date)) in (select god, mes from svoddocs) 
+				                            and status = 'send' and not id in (select _svod_exp1_id from existdocs)   ),
+                        
+                        alldata as (SELECT * from izmexp union all select * from svodexp),
+
+                        countitem as (select count(id) as count from alldata)                        
+  
+                    SELECT alldata.tipdoc, alldata.id, alldata.nom, to_char(alldata._date, 'dd.mm.yyyy hh:mm:ss') as _date, alldata._organization_id, orgs.name_rus as org_name, countitem.count 
+                    FROM alldata
+                    LEFT JOIN orgs on alldata._organization_id = orgs.id
+                    LEFT JOIN countitem on True
+                    ORDER BY alldata.tipdoc desc, alldata.id"""
+
+    with connection.cursor() as cursor:
+        cursor.execute(query)
+        columns = [col[0] for col in cursor.description]
+        result = [dict(zip(columns, row))
+            for row in cursor.fetchall()]
+       
+    resp = simplepagination(offset=offset, limit=limit, request=request, result=result)
+    return HttpResponse(json.dumps(resp), content_type="application/json")
+
+
 
 
 @api_view(['GET'])
@@ -1012,6 +1081,7 @@ def izmexpsave(request):
     payments = data['payments']
     obligs = data['obligats']
 
+
     if not len(payments)==len(obligs):
         response_data = {"status": "Количество строк в платежах и в обязательствам разные."}
         return HttpResponse(json.dumps(response_data), content_type="application/json", status=400)
@@ -1031,6 +1101,9 @@ def izmexpsave(request):
                 itemdoc = izm_exp()
                 itemdoc.nom = str(doc_cnt + 1) + '-' + org.bin
             else:
+                count = svod_exp_tbl.objects.filter(_izm_exp_id = doc_req['id']).count()
+                if count>0:
+                    return response.Response({"status":"Данный документ уже принят вышестоящей организацией"}, status=400)
                 itemdoc = izm_exp.objects.get(id=doc_req['id'])
             itemdoc._organization_id = org.id
             itemdoc._budjet_id = budjet_id
@@ -1143,7 +1216,7 @@ def izmexpsave(request):
                         ost = -sm
                         j = ind
                         while ost > 0 and j > 0:
-                            utv_new = itemtbl1['utv' + str(j)] if not itemtbl1['utv' + str(j)] == None else 0
+                            utv_new = itemtbl2['utv' + str(j)] if not itemtbl2['utv' + str(j)] == None else 0
                             sum = min(utv_new, ost)
                             setattr(newregrec, 'sm' + str(j), -sum)
                             god += (-sum)
@@ -1296,6 +1369,26 @@ def izmexpdelete(request):
 
 @api_view(['POST'])
 @permission_classes([IsAuthenticated])
+def izmexpchangestatus(request):
+    req = json.loads(request.body)
+    doc_id = req['doc_id']
+    status = req['status']
+
+    count = svod_exp_tbl.objects.filter(_izm_exp_id = doc_id).count()
+    if count>0:
+        return response.Response({"status":"Данный документ уже принят вышестоящей организацией"}, status=400)
+
+    if not status in ("new", "send", "error"):
+        return response.Response({"status":"ошибка"}, status=400)
+    doc = izm_exp.objects.get(id = doc_id)
+    doc.status = status
+    doc.save()
+    return response.Response({"status":"успешно"}, status=200)
+
+
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
 def expgetplanbyclassif(request):
     datastr = request.body
     data = json.loads(datastr)
@@ -1438,32 +1531,65 @@ def svodexpadd(request):
             else:
                 doc = svod_exp.objects.get(id=id_doc)
                 if doc.deleted:
-                    tbl = svod_exp_tbl.objects.filter(_svod_exp_id = doc.id)
+                    # Предварительно очищаем движения в регистре
                     reg_svod_exp.objects.filter(_svod_exp_id = doc.id).delete()
+
+                    # Обход табличной части документов свода
+                    tbl = svod_exp_tbl.objects.filter(_svod_exp_id = doc.id)
                     for item in tbl:
                         item.deleted = False
                         item.save()
 
-                        new = reg_svod_exp()
-                        new._izm_exp_id = item._izm_exp_id
-                        new._svod_exp_id = doc.id
-                        new._organization_id = data['_organization']['id']
-                        new._date = datetime.strptime(data['_date'], '%d.%m.%Y %H:%M:%S')
-                        new.save()
+                        massbulk = []
+                        # Если в табличной части свода встретиться свод
+                        if not item._svod_exp1_id == None:
+                            # считываем данные с регистра именного этого свода
+                            regs = reg_svod_exp.objects.filter(_svod_exp_id = item._svod_exp1_id)
+
+                            # записываем в регистр нового свода
+                            for line in regs:
+                                new = reg_svod_exp()
+                                new._izm_exp_id = line._izm_exp_id
+                                new._svod_exp_id = doc.id
+                                new._svod_exp_tbl_id = item.id
+                                new._organization_id = data['_organization']['id']
+                                new._date = datetime.strptime(data['_date'], '%d.%m.%Y %H:%M:%S')
+                                massbulk.append(new)
+
+                        # Если в табличной части свода встретиться изменение расхода
+                        # то сразу записываем в регистр этого свода
+                        if not item._izm_exp_id == None:
+                            new = reg_svod_exp()
+                            new._izm_exp_id = item._izm_exp_id
+                            new._svod_exp_id = doc.id
+                            new._svod_exp_tbl_id = item.id
+                            new._organization_id = data['_organization']['id']
+                            new._date = datetime.strptime(data['_date'], '%d.%m.%Y %H:%M:%S')
+                            massbulk.append(new)
+
+                        # Непосредственно запись в базу данных за одно обращение
+                        reg_svod_exp.objects.bulk_create(massbulk)
+
 
             doc._date = datetime.strptime(data['_date'], '%d.%m.%Y %H:%M:%S')
             doc._organization_id = data['_organization']['id']
+            doc._type_izm_doc_id = data['_type_izm_doc']['id']
             doc.deleted = False
             doc.save()
 
             return HttpResponse(json.dumps({"status": "Успешно записан", "doc_id":doc.id, "nom":doc.nom}), content_type="application/json", status=200)
     except Exception as err:
-        return response.Response({"status":"Ошибка добавления документа."})
+        print(err)
+        return response.Response({"status":"Ошибка сохранения документа."}, status=400)
+
+
 
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
 def svodexpitem(request, id_doc):
     if id_doc == 0:
+        queryset = type_izm_doc.objects.all()
+        serialtype = typedocSerializer(queryset, many=True)
         org = request.user.profile._organization
         jsondata = {
                 "doc": {
@@ -1474,67 +1600,100 @@ def svodexpitem(request, id_doc):
                     "_organization": {
                         "id": org.id,
                         "name_rus": org.name_rus
+                    },
+                    "_type_izm_doc": {
+                        "id": 0,
+                        "name_rus": ''
                     }
                 },
                 "payments":[],
                 "obligats":[],
-                "docs_izm":[]
+                "docs_izm":[],
+                "typesdoc": serialtype.data
             }
     else:
         jsondata = object_svod_get(id_doc=id_doc)
-        
+            
     return response.Response(jsondata)
 
 
 @api_view(['POST'])
 @permission_classes([IsAuthenticated])
 def svodexp_add_doc(request, id_doc):
-    
+
+    count = svod_exp_tbl.objects.filter(_svod_exp1_id = id_doc).count()
+    if count>0:
+        return response.Response({"status":"Данный документ уже принят вышестоящей организацией"}, status=400)
+
     try:
         with transaction.atomic():
+            svodobj = svod_exp.objects.get(id = id_doc)
             datastr = request.body
             data = json.loads(datastr)
-            doc_izm = izm_exp.objects.get(id = data['doc_id'])
-            tbl = svod_exp_tbl()
-            tbl._date = doc_izm._date
-            tbl._izm_exp = doc_izm
-            tbl._organization = doc_izm._organization
-            tbl._svod_exp_id = id_doc
-            tbl.save()
+            if data['tipdoc']=='izm':
+                doc_izm = izm_exp.objects.get(id = data['doc_id'])
 
-            svodobj = svod_exp.objects.get(id = id_doc)
+                tbl = svod_exp_tbl()
+                tbl._date = doc_izm._date
+                tbl._izm_exp = doc_izm
+                tbl._organization = doc_izm._organization
+                tbl._svod_exp_id = id_doc
+                tbl.save()
 
-            reg = reg_svod_exp()
-            reg._izm_exp_id = data['doc_id']
-            reg._svod_exp_id = id_doc
-            reg._organization = svodobj._organization
-            reg._date = doc_izm._date
-            reg.save()
+
+                reg = reg_svod_exp()
+                reg._izm_exp_id = data['doc_id']
+                reg._svod_exp_id = id_doc
+                reg._organization = svodobj._organization
+                reg._date = svodobj._date
+                reg._svod_exp_tbl_id = tbl.id
+                reg.save()    
+            else:
+                doc_svod = svod_exp.objects.get(id = data['doc_id'])
+                tbl = svod_exp_tbl()
+                tbl._date = doc_svod._date
+                tbl._svod_exp1 = doc_svod
+                tbl._organization = doc_svod._organization
+                tbl._svod_exp_id = id_doc
+                tbl.save()
+
+                docs_svod = reg_svod_exp.objects.filter(_svod_exp_id = data['doc_id'])
+                for itm in docs_svod:
+                    doc_izm = izm_exp.objects.get(id = itm._izm_exp_id)
+                    reg = reg_svod_exp()
+                    reg._izm_exp_id = doc_izm.id
+                    reg._svod_exp_id = id_doc
+                    reg._organization = svodobj._organization
+                    reg._date = svodobj._date
+                    reg._svod_exp_tbl_id = tbl.id
+                    reg.save()  
 
             jsondata = object_svod_get(id_doc=id_doc)
             return response.Response(jsondata)
     except Exception as err:
-        return response.Response({"status":"Ошибка добавления документа."})
+        print(err)
+        return response.Response({"status":"Ошибка добавления документа."}, status=400)
     
 
 
 @api_view(['POST'])
 @permission_classes([IsAuthenticated])
 def svodexp_del_doc(request, id_doc):
+    count = svod_exp_tbl.objects.filter(_svod_exp1_id = id_doc).count()
+    if count>0:
+        return response.Response({"status":"Данный документ уже принят вышестоящей организацией"}, status=400)
+
     try:
         with transaction.atomic():
             datastr = request.body
             data = json.loads(datastr)
             tbl = svod_exp_tbl.objects.get(id = data['doc_id'])
-            if tbl._svod_exp_id == id_doc:
-                tbl.delete()  
-
-            reg_svod_exp.objects.filter(_svod_exp_id = id_doc, _izm_exp_id = tbl._izm_exp_id).delete()
-
+            reg_svod_exp.objects.filter(_svod_exp_id = id_doc, _svod_exp_tbl_id = data['doc_id']).delete()
+            tbl.delete()
             jsondata = object_svod_get(id_doc=id_doc)
             return response.Response(jsondata)
     except Exception as err:
-        return response.Response({"status":"Ошибка удаления документа."})
+        return response.Response({"status":"Ошибка удаления документа."}, status=100)
 
 
 @api_view(['DELETE'])
@@ -1550,6 +1709,10 @@ def svodexpdelete(request):
         try:
             with transaction.atomic():
                 for id_doc in docs:
+                    count = svod_exp_tbl.objects.filter(_svod_exp1_id = id_doc).count()
+                    if count>0:
+                        transaction.rollback(True)
+
                     svod_exp_tbl.objects.filter(_svod_exp_id=id_doc).delete()
                     reg_svod_exp.objects.filter(_svod_exp_id=id_doc).delete()
                     docdel = svod_exp.objects.get(id=id_doc)
@@ -1560,6 +1723,10 @@ def svodexpdelete(request):
         try:
             with transaction.atomic():
                 for id_doc in docs:
+                    count = svod_exp_tbl.objects.filter(_svod_exp1_id = id_doc).count()
+                    if count>0:
+                        transaction.rollback(True)
+
                     tbldel = svod_exp_tbl.objects.filter(_svod_exp_id=id_doc)
                     for item in tbldel:
                         item.deleted = True
@@ -1575,6 +1742,31 @@ def svodexpdelete(request):
         return response.Response({"status":"успешно"})
     else:
         return response.Response({"status":"Ошибка удаления документа"}, status=400)
+
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def svodexpchangestatus(request):
+    req = json.loads(request.body)
+    doc_id = req['doc_id']
+    status = req['status']
+
+    count = svod_exp_tbl.objects.filter(_svod_exp1_id = doc_id).count()
+    if count>0:
+        return response.Response({"status":"Данный документ уже принят вышестоящей организацией"}, status=400)
+
+    if not status in ("new", "send", "error"):
+        return response.Response({"status":"ошибка"}, status=400)
+    doc = svod_exp.objects.get(id = doc_id)
+    doc.status = status
+    doc.save()
+    return response.Response({"status":"успешно"}, status=200)
+
+
+
+
+
+
 
 
 
@@ -2140,7 +2332,7 @@ def import_420(request):
                     newbjt.save()
                     budjet_id = newbjt.id
 
-                obj420_count = import420.objects.filter(_date = date, _organization_id = org_id).count()
+                obj420_count = import420.objects.filter(_date = date, _organization_id = org_id, deleted = False).count()
                 if obj420_count > 0:
                     transaction.rollback("Документ организации " + org_code + " уже загружен датой " + _date)
 

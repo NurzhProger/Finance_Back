@@ -3,6 +3,7 @@ from django.db import connection, transaction
 from .models import *
 from openpyxl import load_workbook
 import os
+from docs.serializer import *
 # from PyPDF2 import PdfReader
 
 
@@ -46,6 +47,9 @@ def fkrreadxls(path='fkr.xls'):
 
 
 def object_svod_get(id_doc):
+    queryset = type_izm_doc.objects.all()
+    serialtype = typedocSerializer(queryset, many=True)
+
     jsondata = {
         "doc": {
             "id": 0,
@@ -55,40 +59,54 @@ def object_svod_get(id_doc):
             "_organization": {
                 "id": 0,
                 "name_rus": ""
+            },
+            "_type_izm_doc": {
+                "id": 0,
+                "name_rus": ""
             }
         },
         "payments": [],
         "obligats": [],
         "docs_izm": []
     }
+    
 
 
-    querydoc = f"""with doc as (SELECT * FROM public.docs_svod_exp
-                                WHERE id = {id_doc}
-                                ),
+    querydoc = f"""with doc as (SELECT * FROM public.docs_svod_exp WHERE id = {id_doc} ),
+                        typeizm as (select * from dirs_type_izm_doc),
                         org as (select id, bin, name_rus from public.dirs_organization
                                 where id in (select _organization_id from doc)
                                 )
                                 
-                    select doc.id, doc.nom, to_char(doc._date, 'dd.mm.yyyy hh:mm:ss') as _date, doc.deleted, org.id as _organization_id, org.name_rus as _organization_name
-                    from org, doc"""
+                    select doc.id, doc.nom, to_char(doc._date, 'dd.mm.yyyy hh:mm:ss') as _date, doc.deleted, org.id as _organization_id, org.name_rus as _organization_name, typeizm.id as _type_izm_doc_id, typeizm.name_rus as _type_izm_doc_name 
+                    from org, doc
+                    left join typeizm
+                    on doc._type_izm_doc_id = typeizm.id"""
 
-    querydoctbl = f"""with doc as (SELECT * FROM public.docs_svod_exp_tbl
+    querydoctbl = f"""with doc as (SELECT * FROM docs_svod_exp_tbl
                                 WHERE _svod_exp_id = {id_doc}
                                 ),
-                        izm_docs as (select * from public.docs_izm_exp
+                        izm_docs as (select 'izm' as tipdoc, id, deleted, nom, _date,_organization_id  from docs_izm_exp
                                 where id in (select _izm_exp_id from doc)
                                 ),
+						svod_docs as (select 'svod' as tipdoc, id, deleted, nom, _date, _organization_id  from docs_svod_exp
+                                where id in (select _svod_exp1_id from doc)
+                                ),
                         org as (select id, bin, name_rus from public.dirs_organization
-                                where id in (select _organization_id from izm_docs)
-                                )
-                                
-                    select doc.id, izm_docs.id as izm_id, izm_docs.deleted, izm_docs.nom,  to_char(izm_docs._date, 'dd.mm.yyyy hh:mm:ss') as _date, org.id as _organization_id, org.name_rus as _organization_name
-                    from doc
-                    left join izm_docs
-                    on doc._izm_exp_id = izm_docs.id
-                    left join org
-                    on izm_docs._organization_id = org.id"""
+                                where id in (select _organization_id from doc)
+                                ),
+						uniondocs as (
+							select * from izm_docs
+							union all
+							select * from svod_docs
+						)              
+                        select doc.id, uniondocs.tipdoc, uniondocs.id as izm_id, uniondocs.deleted, uniondocs.nom,  to_char(uniondocs._date, 'dd.mm.yyyy hh:mm:ss') as _date, 
+                                org.id as _organization_id, org.name_rus as _organization_name
+                        from doc
+                        left join uniondocs
+                            on doc._izm_exp_id = uniondocs.id or doc._svod_exp1_id = uniondocs.id
+                        left join org
+                            on uniondocs._organization_id = org.id"""
 
     querypay = f"""with pay as (SELECT * FROM public.docs_izm_exp_pay
                                 WHERE _izm_exp_id in %s),
@@ -144,10 +162,11 @@ def object_svod_get(id_doc):
         resulttbl = [dict(zip(columns, row))
                   for row in cursor.fetchall()]
 
+        qset = reg_svod_exp.objects.filter(_svod_exp_id = id_doc)
         izm_id_mass = []
         izm_id_mass.append(0)
-        for i in resulttbl:
-            izm_id_mass.append(i['izm_id'])
+        for itm in qset:
+            izm_id_mass.append(itm._izm_exp_id)
 
 
         cursor.execute(querypay, (tuple(izm_id_mass),))
@@ -165,9 +184,56 @@ def object_svod_get(id_doc):
     jsondata['doc']['nom'] = result[0]['nom']
     jsondata['doc']['_organization']['id'] = result[0]['_organization_id']
     jsondata['doc']['_organization']['name_rus'] = result[0]['_organization_name']
+    jsondata['doc']['_type_izm_doc']['id'] = result[0]['_type_izm_doc_id']
+    jsondata['doc']['_type_izm_doc']['name_rus'] = result[0]['_type_izm_doc_name']
     jsondata['doc']['deleted'] = result[0]['deleted']
     jsondata['payments'] = resultpay
     jsondata['obligats'] = resultobl
     jsondata['docs_izm'] = resulttbl
 
+    jsondata["typesdoc"] = serialtype.data
+
     return jsondata
+
+
+
+def simplepagination(offset, limit, request, result):
+    current_url = request.build_absolute_uri()
+    if offset>=limit:
+        previous = current_url + "?limit=" + str(limit) +  "&offset=" + str(int(offset) - int(limit))
+        next = current_url + "?limit=" + str(limit) +  "&offset=" + str(int(offset) + int(limit))
+    else:
+        previous = None
+        next = current_url + "?limit=" + str(limit) +  "&offset=" + str(int(offset) + int(limit))
+
+    if len(result)<int(limit):
+        next = None
+        offset_prev = max(int(offset) - int(limit), 0)
+        if offset_prev==0:
+            previous = None
+        else:
+            previous = current_url + "?limit=" + str(limit) +  "&offset=" + str(offset_prev)
+    
+    if len(result)>0:
+        count = result[0]['count']
+    else:
+        count = 0
+
+    response = {
+        "count": count,
+        "next": next,
+        "previous": previous,
+        "results": result
+        }
+    return response
+
+
+
+
+
+
+
+
+
+
+

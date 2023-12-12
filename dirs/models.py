@@ -37,6 +37,10 @@ class abp(models.Model):
     code = models.TextField(null=True)
     name_kaz = models.TextField(null=True)
     name_rus = models.TextField(null=True)
+
+
+class region(models.Model):
+    name = models.TextField(primary_key=True)
     
 
 class organization(models.Model):
@@ -45,6 +49,7 @@ class organization(models.Model):
     name_kaz = models.TextField(null=True)
     name_rus = models.TextField(null=True)
     adress = models.TextField(null=True)
+    _region = models.ForeignKey(region, blank=True, null=True, on_delete=models.CASCADE)
     _budjet = models.ForeignKey(budjet, blank=True, on_delete=models.CASCADE, verbose_name='Бюджет региона')
     _abp = models.ForeignKey(abp, blank=True, null=True, on_delete=models.CASCADE, verbose_name='АБП')
     deleted = models.BooleanField(default=False, null=True)

@@ -36,8 +36,14 @@ def organizationitem(request, id):
     parent = queryset.child_organization
     serialparent = parent_organizationsSerializer(parent, many=True)
     serial = organizationSerializer(queryset, many=False)
+
+
+    queryset_region = region.objects.all()
+    serial_region = regionSerializer(queryset_region, many=True)
+
     asd = serial.data
     asd["parent_organizations"] = serialparent.data
+    asd["regions"] = serial_region.data
     return response.Response(asd)
 
 
@@ -55,6 +61,11 @@ def organizationsave(request):
     _abp = data['_abp']
     codeorg = data['codeorg']
     is_abp = data['is_abp']
+    region = data['_region']
+
+    if region == None:
+        return HttpResponse('{"status":"Укажите регион организации"}', content_type="application/json", status = 400)
+
 
     try:
         with transaction.atomic():
@@ -70,6 +81,7 @@ def organizationsave(request):
             new._abp_id = _abp['id']
             new.is_abp = is_abp
             new.codeorg = codeorg
+            new._region_id = region
             new.save()
             return HttpResponse('{"status":"Успешно сохранен"}', content_type="application/json")
     except Exception as err:
@@ -101,6 +113,16 @@ def budjetlist(request):
     paginator = CustomPagination()
     paginated_queryset = paginator.paginate_queryset(queryset, request)
     serial = shareSerializer(paginated_queryset, many=True)
+    return paginator.get_paginated_response(serial.data)
+
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def regionlist(request):
+    queryset = region.objects.all()
+    paginator = CustomPagination()
+    paginated_queryset = paginator.paginate_queryset(queryset, request)
+    serial = regionSerializer(paginated_queryset, many=True)
     return paginator.get_paginated_response(serial.data)
 
 

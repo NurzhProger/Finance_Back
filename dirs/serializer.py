@@ -14,6 +14,12 @@ class abpSerializer(serializers.ModelSerializer):
         fields = '__all__'
 
 
+class regionSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = region
+        fields = '__all__'
+
+
 class fkrMinSerializer(serializers.ModelSerializer):
     class Meta:
         model = fkr

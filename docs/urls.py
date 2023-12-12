@@ -24,8 +24,10 @@ urlpatterns = [
 
 
     path('izmexplist', views.izmexplist, name='index'),
+    path('izmexpselect', views.izmexpselect, name='index'),
     path('izmexpitem/<int:id_doc>', views.izmexpitem, name='index'),
     path('izmexpsave', views.izmexpsave, name='index'),
+    path('izmexpchangestatus', views.izmexpchangestatus, name='index'),
     path('izmexpdelete', views.izmexpdelete, name='index'),
     path('expgetplanbyclassif', views.expgetplanbyclassif, name='index'),
 
@@ -36,6 +38,7 @@ urlpatterns = [
     path('svodexpitem/<int:id_doc>/add', views.svodexp_add_doc, name='index'),
     path('svodexpdelete', views.svodexpdelete, name='index'),
     path('svodexpitem/<int:id_doc>/delete', views.svodexp_del_doc, name='index'),
+    path('svodexpchangestatus', views.svodexpchangestatus, name='index'),
 
 
     path('import219', views.import_219, name='index'), 

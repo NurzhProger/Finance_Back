@@ -125,10 +125,13 @@ class import_420_serial(serializers.ModelSerializer):
 
 class svod_exp_list_serial(serializers.ModelSerializer):
     _organization = organizationMinSerializer()
+    _type_izm_doc = typedocSerializer()
     _date = serializers.DateTimeField(format='%d.%m.%Y %H:%M:%S')
     class Meta:
         model = svod_exp
         fields = '__all__'
+
+
 
 
 

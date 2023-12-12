@@ -21,6 +21,7 @@ urlpatterns = [
     path('budjetlist', views.budjetlist, name='index'),
 
     path('typeincdoclist', views.typeincdoclist, name='index'),
+    path('regionlist', views.regionlist, name='index'),
 
     path('categorylist', views.categorylist, name='index'),
     path('categoryadd', views.categoryadd, name='index'),
